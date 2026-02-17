@@ -5,19 +5,30 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { LandingPage } from './components/LandingPage';
 import { User } from './types';
 import { getSession, clearSession } from './services/auth';
+import { initDB } from './services/migrations';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
+  const [dbInitialized, setDbInitialized] = useState(false);
 
-  // Check for existing session on boot
+  // Initialize DB and Check for existing session on boot
   useEffect(() => {
-    const session = getSession();
-    if (session) {
-      setUser(session);
-    }
-    setLoading(false);
+    const boot = async () => {
+      // 1. Ensure DB tables exist
+      await initDB();
+      setDbInitialized(true);
+
+      // 2. Check Session
+      const session = getSession();
+      if (session) {
+        setUser(session);
+      }
+      setLoading(false);
+    };
+
+    boot();
   }, []);
 
   const handleLogin = (loggedInUser: User) => {
@@ -37,8 +48,9 @@ function App() {
 
   if (loading) {
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
             <div className="animate-spin w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full"></div>
+            <p className="text-slate-400 text-sm font-medium animate-pulse">Starting System...</p>
         </div>
     );
   }

@@ -1,4 +1,4 @@
-import { sql } from './db';
+import { sql, isOffline } from './db';
 import { AttendanceRecord } from '../types';
 
 // Map DB row to AttendanceRecord
@@ -11,7 +11,7 @@ const mapRecord = (row: any): AttendanceRecord => ({
   timestamp: parseInt(row.timestamp),
   dateStr: row.date_str,
   timeStr: row.time_str,
-  location: row.location, // JSONB comes back as object
+  location: row.location,
   photoUrl: row.photo_url,
   aiVerification: row.ai_verification,
   synced: row.synced
@@ -19,6 +19,17 @@ const mapRecord = (row: any): AttendanceRecord => ({
 
 export const getAttendanceRecords = async (userId?: string): Promise<AttendanceRecord[]> => {
   try {
+    if (isOffline) {
+      const raw = JSON.parse(localStorage.getItem('attendance_records') || '[]');
+      let records = raw.map(mapRecord);
+      
+      if (userId) {
+        records = records.filter((r: AttendanceRecord) => r.userId === userId);
+      }
+      // Sort desc
+      return records.sort((a: AttendanceRecord, b: AttendanceRecord) => b.timestamp - a.timestamp);
+    }
+
     let rows;
     if (userId) {
       rows = await sql`SELECT * FROM attendance_records WHERE user_id = ${userId} ORDER BY timestamp DESC`;
@@ -34,6 +45,28 @@ export const getAttendanceRecords = async (userId?: string): Promise<AttendanceR
 
 export const createAttendanceRecord = async (record: AttendanceRecord): Promise<void> => {
   try {
+    if (isOffline) {
+      const records = JSON.parse(localStorage.getItem('attendance_records') || '[]');
+      // Store in snake_case to match DB format for consistency in mapRecord
+      const dbRow = {
+        id: record.id,
+        user_id: record.userId,
+        user_name: record.userName,
+        user_role: record.userRole,
+        type: record.type,
+        timestamp: record.timestamp,
+        date_str: record.dateStr,
+        time_str: record.timeStr,
+        location: record.location,
+        photo_url: record.photoUrl,
+        ai_verification: record.aiVerification,
+        synced: true
+      };
+      records.push(dbRow);
+      localStorage.setItem('attendance_records', JSON.stringify(records));
+      return;
+    }
+
     await sql`
       INSERT INTO attendance_records (
         id, user_id, user_name, user_role, type, timestamp, 
