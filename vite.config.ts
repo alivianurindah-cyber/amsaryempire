@@ -3,15 +3,17 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, (process as any).cwd(), '');
 
   return {
     plugins: [react()],
     define: {
       // Safely expose specific environment variables to the browser
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
-      // Prevent "process is not defined" errors in browser
+      // Using JSON.stringify ensures values are embedded as strings
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || ""),
+      'process.env.NETLIFY_DATABASE_URL': JSON.stringify(env.NETLIFY_DATABASE_URL || env.DATABASE_URL || ""),
+      'process.env.DATABASE_URL': JSON.stringify(env.DATABASE_URL || ""),
+      // Polyfill process.env to empty object to prevent "process is not defined" crashes
       'process.env': {}
     }
   };

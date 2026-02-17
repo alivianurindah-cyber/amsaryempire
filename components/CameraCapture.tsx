@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Camera, MapPin, RefreshCw, AlertCircle } from 'lucide-react';
+import { Camera, MapPin, RefreshCw, AlertCircle, CheckSquare, Square } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Button } from './Button';
 import { LocationData } from '../types';
@@ -19,6 +19,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
   const [location, setLocation] = useState<LocationData | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isLocationConfirmed, setIsLocationConfirmed] = useState(false);
 
   // Clock tick
   useEffect(() => {
@@ -37,7 +38,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
         setLoadingLocation(false);
 
         // 2. Get Camera
-        // Prefer rear camera on mobile for attendance proof if needed, but 'user' (front) is standard for selfie
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false
@@ -76,8 +76,50 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    // Draw video frame
+    // 1. Draw video frame
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // 2. Add Watermark Overlay
+    // Gradient background for text legibility
+    const gradient = ctx.createLinearGradient(0, canvas.height - 100, 0, canvas.height);
+    gradient.addColorStop(0, 'transparent');
+    gradient.addColorStop(1, 'rgba(0,0,0,0.8)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, canvas.height - 100, canvas.width, 100);
+
+    // Text Settings
+    ctx.fillStyle = 'white';
+    ctx.shadowColor = 'black';
+    ctx.shadowBlur = 2;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+
+    // Draw Date & Time
+    const dateStr = new Date().toLocaleString([], { 
+        year: 'numeric', month: 'short', day: 'numeric', 
+        hour: '2-digit', minute: '2-digit', second: '2-digit' 
+    });
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText(dateStr, 20, canvas.height - 50);
+
+    // Draw Location
+    const locStr = location.address || `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
+    ctx.font = '16px sans-serif';
+    // Truncate if too long
+    const maxTextWidth = canvas.width - 40;
+    let truncatedLoc = locStr;
+    if (ctx.measureText(truncatedLoc).width > maxTextWidth) {
+        // Simple truncation
+        truncatedLoc = locStr.substring(0, 50) + '...';
+    }
+    ctx.fillText(truncatedLoc, 20, canvas.height - 25);
+
+    // Draw "Verified" Badge
+    ctx.fillStyle = mode === 'CLOCK_IN' ? '#4ade80' : '#f87171'; // Green or Red
+    ctx.fillRect(20, canvas.height - 85, 10, 10);
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText(mode.replace('_', ' '), 35, canvas.height - 76);
 
     // Generate image data
     const imageSrc = canvas.toDataURL('image/jpeg', 0.85);
@@ -98,7 +140,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
   }
 
   return (
-    // Mobile: Fixed full screen. Desktop: Relative card.
     <div className="fixed inset-0 w-full h-[100dvh] bg-black sm:relative sm:h-[850px] sm:max-w-md sm:mx-auto sm:rounded-3xl sm:overflow-hidden z-50 flex flex-col">
       {/* Video Stream */}
       <div className="flex-1 relative overflow-hidden bg-slate-900">
@@ -124,6 +165,9 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
                         {loadingLocation ? 'Locating...' : 'GPS Locked'}
                     </span>
                  </div>
+                 <button onClick={onCancel} className="bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-medium text-white hover:bg-black/50 transition-colors">
+                    Cancel
+                 </button>
              </div>
         </div>
       </div>
@@ -135,38 +179,67 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
       <div className="bg-white p-6 pb-[calc(2rem+env(safe-area-inset-bottom))] rounded-t-3xl -mt-6 relative z-10 flex flex-col gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
         
         {/* Location Verification Section */}
-        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-2 flex items-start gap-3">
-             <div className="bg-white p-2 rounded-lg shadow-sm text-brand-600 mt-1">
-                 <MapPin className="w-5 h-5" />
+        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-2">
+             <div className="flex items-start gap-3 mb-3">
+                <div className="bg-white p-2 rounded-lg shadow-sm text-brand-600 mt-1">
+                    <MapPin className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Current Location</p>
+                    <p className="text-sm font-semibold text-slate-900 leading-snug">
+                        {loadingLocation ? 'Fetching precise address...' : (location?.address || 'Unknown Location')}
+                    </p>
+                    {location && !loadingLocation && (
+                       <p className="text-xs text-slate-500 mt-1">Accuracy: ~{Math.round(location.accuracy)} meters</p>
+                    )}
+                </div>
              </div>
-             <div className="flex-1">
-                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Current Location</p>
-                 <p className="text-sm font-semibold text-slate-800 leading-tight">
-                    {loadingLocation ? 'Fetching address...' : (location?.address || 'Unknown Location')}
-                 </p>
-                 {!loadingLocation && location && (
-                     <p className="text-[10px] text-brand-600 mt-1 font-medium">
-                        Please verify this address is correct before capturing.
-                     </p>
-                 )}
-             </div>
+
+             {/* Confirmation Checkbox */}
+             <button 
+                onClick={() => !loadingLocation && setIsLocationConfirmed(!isLocationConfirmed)}
+                disabled={loadingLocation || !location}
+                className={clsx(
+                    "w-full flex items-center gap-3 p-3 rounded-lg border transition-all",
+                    isLocationConfirmed 
+                        ? "bg-green-50 border-green-200 text-green-800" 
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                )}
+             >
+                {isLocationConfirmed ? (
+                    <CheckSquare className="w-5 h-5 text-green-600 shrink-0" />
+                ) : (
+                    <Square className="w-5 h-5 text-slate-400 shrink-0" />
+                )}
+                <span className="text-xs font-medium text-left">
+                    I confirm this is my correct location
+                </span>
+             </button>
         </div>
 
         <div className="flex items-center justify-center gap-8">
           <button 
-            onClick={onCancel}
+            onClick={() => {
+                setLoadingLocation(true);
+                setLocation(null);
+                getCurrentLocation().then(loc => {
+                    setLocation(loc);
+                    setLoadingLocation(false);
+                });
+            }}
             className="p-3.5 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+            title="Refresh Location"
           >
             <RefreshCw className="w-5 h-5" />
           </button>
           
           <button
             onClick={handleCapture}
-            disabled={loadingLocation || !location}
+            disabled={loadingLocation || !location || !isLocationConfirmed}
             className={clsx(
               "w-20 h-20 rounded-full flex items-center justify-center transition-all transform active:scale-95 shadow-lg relative overflow-hidden",
               mode === 'CLOCK_IN' ? 'bg-brand-600 hover:bg-brand-700 shadow-brand-500/30' : 'bg-brand-600 hover:bg-brand-700 shadow-brand-500/30',
-              (loadingLocation || !location) && "opacity-50 cursor-not-allowed grayscale"
+              (loadingLocation || !location || !isLocationConfirmed) && "opacity-50 cursor-not-allowed grayscale"
             )}
           >
              <div className="w-16 h-16 rounded-full border-2 border-white/30 flex items-center justify-center">

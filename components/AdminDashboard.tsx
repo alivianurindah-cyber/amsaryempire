@@ -3,6 +3,7 @@ import { LogOut, Users, Search, MapPin, Clock, Filter, CheckCircle2, ChefHat, Ed
 import { AttendanceRecord, User } from '../types';
 import { Button } from './Button';
 import { getUsers, updateUser, deleteUser, register } from '../services/auth';
+import { getAttendanceRecords } from '../services/attendance';
 
 interface AdminDashboardProps {
   user: User;
@@ -25,26 +26,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
 
   useEffect(() => {
     // Load Logs
-    const saved = localStorage.getItem('attendance_records');
-    if (saved) {
-      try {
-        setRecords(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to parse records', e);
-      }
-    }
-    // Load Users
-    loadUsers();
+    const loadData = async () => {
+        const recs = await getAttendanceRecords();
+        setRecords(recs);
+        const usrs = await getUsers();
+        setUsers(usrs);
+    };
+    loadData();
   }, [activeTab]);
-
-  const loadUsers = async () => {
-    try {
-        const data = await getUsers();
-        setUsers(data);
-    } catch(e) {
-        console.error("Failed to load users", e);
-    }
-  };
 
   const handleEditClick = (u: User) => {
     setEditingUser(u);
@@ -70,14 +59,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         }
 
         setEditingUser(null);
-        loadUsers();
+        // Refresh users
+        const usrs = await getUsers();
+        setUsers(usrs);
     }
   };
 
   const handleDeleteUser = async (id: string) => {
     if (window.confirm('Are you sure you want to remove this staff member?')) {
         await deleteUser(id);
-        loadUsers();
+        const usrs = await getUsers();
+        setUsers(usrs);
     }
   };
 
@@ -171,7 +163,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                     <div>
                         <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">Locations</p>
                         <p className="text-3xl font-bold text-slate-900">
-                            {new Set(records.map(r => r.location.address)).size}
+                            {new Set(records.map(r => r.location?.address)).size}
                         </p>
                     </div>
                     <div className="bg-orange-50 p-3 rounded-lg">
@@ -261,7 +253,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2 max-w-xs text-slate-600">
                                             <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                                            <span className="text-sm truncate">{record.location.address || 'GPS Coordinates'}</span>
+                                            <span className="text-sm truncate">{record.location?.address || 'GPS Coordinates'}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">

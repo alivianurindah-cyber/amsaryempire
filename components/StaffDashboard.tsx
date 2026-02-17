@@ -7,6 +7,7 @@ import { AttendanceCalendar } from './AttendanceCalendar';
 import { Button } from './Button';
 import { verifyAttendanceImage } from '../services/geminiService';
 import { updateUser } from '../services/auth';
+import { getAttendanceRecords, createAttendanceRecord } from '../services/attendance';
 
 interface StaffDashboardProps {
   user: User;
@@ -40,19 +41,13 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
     user.homeAddress && 
     user.emergencyPhone;
 
-  // Load records from local storage on mount
+  // Load records from DB on mount
   useEffect(() => {
-    const saved = localStorage.getItem('attendance_records');
-    if (saved) {
-      try {
-        const allRecords: AttendanceRecord[] = JSON.parse(saved);
-        // Filter records for this user only
-        const userRecords = allRecords.filter(r => r.userId === user.id);
-        setRecords(userRecords);
-      } catch (e) {
-        console.error('Failed to parse records', e);
-      }
-    }
+    const loadData = async () => {
+      const data = await getAttendanceRecords(user.id);
+      setRecords(data);
+    };
+    loadData();
   }, [user.id]);
 
   // Logic to determine if actions are allowed today
@@ -60,6 +55,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
   const todaysRecords = records.filter(r => r.dateStr === todayStr);
   const hasClockedInToday = todaysRecords.some(r => r.type === 'CLOCK_IN');
   const hasClockedOutToday = todaysRecords.some(r => r.type === 'CLOCK_OUT');
+  const isShiftComplete = hasClockedInToday && hasClockedOutToday;
 
   // Handle Profile Update
   const handleProfileSubmit = async (e: React.FormEvent) => {
@@ -129,7 +125,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
     }
 
     const now = new Date();
-    // Use simple ID generation instead of crypto.randomUUID for broader compatibility
+    // Use simple ID generation
     const generateId = () => Math.random().toString(36).substring(2) + Date.now().toString(36);
     
     const newRecord: AttendanceRecord = {
@@ -144,23 +140,19 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
       location: location,
       photoUrl: imageSrc,
       aiVerification: aiResult,
-      synced: false
+      synced: true 
     };
 
-    // Update state
-    const updatedRecords = [newRecord, ...records];
-    setRecords(updatedRecords);
+    // Optimistic Update
+    setRecords([newRecord, ...records]);
 
-    // Update Local Storage
-    const saved = localStorage.getItem('attendance_records');
-    let allRecords: AttendanceRecord[] = [];
-    if (saved) {
-        try {
-            allRecords = JSON.parse(saved);
-        } catch(e) {}
+    // Save to DB
+    try {
+      await createAttendanceRecord(newRecord);
+    } catch (error) {
+      console.error("Failed to save record to DB", error);
+      alert("Failed to save attendance record. Please check your connection.");
     }
-    const newAllRecords = [newRecord, ...allRecords];
-    localStorage.setItem('attendance_records', JSON.stringify(newAllRecords));
     
     setIsProcessing(false);
   };
@@ -304,9 +296,9 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                 <div>
                    <h2 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">Current Status</h2>
                    <div className="flex items-center gap-2">
-                     <span className={`w-2.5 h-2.5 rounded-full ${hasClockedInToday && !hasClockedOutToday ? 'bg-green-500' : 'bg-slate-300'}`}></span>
+                     <span className={`w-2.5 h-2.5 rounded-full ${hasClockedInToday && !hasClockedOutToday ? 'bg-green-500' : (isShiftComplete ? 'bg-brand-500' : 'bg-slate-300')}`}></span>
                      <span className="text-2xl font-bold text-slate-900">
-                        {hasClockedOutToday ? 'Shift Ended' : (hasClockedInToday ? 'Active' : 'Not Started')}
+                        {isShiftComplete ? 'Done' : (hasClockedInToday ? 'Active' : 'Not Started')}
                      </span>
                    </div>
                 </div>
@@ -318,33 +310,46 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <Button 
-                  onClick={() => handleStartCapture('CLOCK_IN')}
-                  variant="primary"
-                  className={!hasClockedInToday
-                    ? "bg-brand-600 hover:bg-brand-700 shadow-lg shadow-brand-500/20 py-4" 
-                    : "bg-white text-slate-400 border border-slate-200 shadow-none hover:bg-slate-50"}
-                  disabled={isProcessing || hasClockedInToday}
-                >
-                  {hasClockedInToday ? 'Clocked In (Done)' : 'Clock In'}
-                </Button>
-                <Button 
-                  onClick={() => handleStartCapture('CLOCK_OUT')}
-                  variant="primary"
-                   className={hasClockedInToday && !hasClockedOutToday
-                    ? "bg-brand-600 hover:bg-brand-700 shadow-lg shadow-brand-500/20 py-4" 
-                    : "bg-white text-slate-400 border border-slate-200 shadow-none hover:bg-slate-50"}
-                   disabled={isProcessing || !hasClockedInToday || hasClockedOutToday}
-                >
-                  {hasClockedOutToday ? 'Clocked Out (Done)' : 'Clock Out'}
-                </Button>
-              </div>
-              <div className="mt-3 text-center">
-                 <p className="text-[10px] text-slate-400">
-                    * You can only Clock In and Clock Out once per day.
-                 </p>
-              </div>
+              {isShiftComplete ? (
+                <div className="bg-green-50 border border-green-100 rounded-xl p-6 text-center">
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <CheckCircle className="w-6 h-6 text-green-600" />
+                    </div>
+                    <h3 className="text-lg font-bold text-green-900">Attendance Completed</h3>
+                    <p className="text-green-700 text-sm mt-1">You have successfully clocked in and out for today.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                    <Button 
+                    onClick={() => handleStartCapture('CLOCK_IN')}
+                    variant="primary"
+                    className={!hasClockedInToday
+                        ? "bg-brand-600 hover:bg-brand-700 shadow-lg shadow-brand-500/20 py-4" 
+                        : "bg-white text-slate-400 border border-slate-200 shadow-none hover:bg-slate-50"}
+                    disabled={isProcessing || hasClockedInToday}
+                    >
+                    {hasClockedInToday ? 'Clocked In' : 'Clock In'}
+                    </Button>
+                    <Button 
+                    onClick={() => handleStartCapture('CLOCK_OUT')}
+                    variant="primary"
+                    className={hasClockedInToday && !hasClockedOutToday
+                        ? "bg-brand-600 hover:bg-brand-700 shadow-lg shadow-brand-500/20 py-4" 
+                        : "bg-white text-slate-400 border border-slate-200 shadow-none hover:bg-slate-50"}
+                    disabled={isProcessing || !hasClockedInToday || hasClockedOutToday}
+                    >
+                    {hasClockedOutToday ? 'Clocked Out' : 'Clock Out'}
+                    </Button>
+                </div>
+              )}
+              
+              {!isShiftComplete && (
+                  <div className="mt-3 text-center">
+                    <p className="text-[10px] text-slate-400">
+                        * You can only Clock In and Clock Out once per day.
+                    </p>
+                </div>
+              )}
             </div>
 
             {/* Recent Activity */}
