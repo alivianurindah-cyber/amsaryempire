@@ -119,9 +119,9 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
         <div className="absolute inset-x-0 top-0 p-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-gradient-to-b from-black/50 to-transparent text-white">
              <div className="flex justify-between items-center">
                  <div className="bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5" />
+                    <div className={clsx("w-2 h-2 rounded-full", loadingLocation ? "bg-yellow-400 animate-pulse" : "bg-green-400")}></div>
                     <span className="text-xs font-medium">
-                        {loadingLocation ? 'Locating...' : (location?.address ? location.address.split(',')[0] : 'GPS Fixed')}
+                        {loadingLocation ? 'Locating...' : 'GPS Locked'}
                     </span>
                  </div>
              </div>
@@ -134,13 +134,22 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
       {/* Controls */}
       <div className="bg-white p-6 pb-[calc(2rem+env(safe-area-inset-bottom))] rounded-t-3xl -mt-6 relative z-10 flex flex-col gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
         
-        <div className="text-center mb-2">
-            <h2 className="text-2xl font-bold text-slate-900">
-                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </h2>
-            <p className="text-sm text-slate-500 font-medium">
-                {currentTime.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-            </p>
+        {/* Location Verification Section */}
+        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-2 flex items-start gap-3">
+             <div className="bg-white p-2 rounded-lg shadow-sm text-brand-600 mt-1">
+                 <MapPin className="w-5 h-5" />
+             </div>
+             <div className="flex-1">
+                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Current Location</p>
+                 <p className="text-sm font-semibold text-slate-800 leading-tight">
+                    {loadingLocation ? 'Fetching address...' : (location?.address || 'Unknown Location')}
+                 </p>
+                 {!loadingLocation && location && (
+                     <p className="text-[10px] text-brand-600 mt-1 font-medium">
+                        Please verify this address is correct before capturing.
+                     </p>
+                 )}
+             </div>
         </div>
 
         <div className="flex items-center justify-center gap-8">
@@ -169,7 +178,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
         </div>
         
         <p className="text-center text-xs text-slate-400 mt-2 font-medium">
-          {loadingLocation ? 'Acquiring precise location...' : 'Tap capture to confirm'}
+          {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {currentTime.toLocaleDateString()}
         </p>
       </div>
     </div>

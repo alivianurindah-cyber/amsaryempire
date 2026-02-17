@@ -55,17 +55,11 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
     }
   }, [user.id]);
 
-  // Determine next likely action
-  useEffect(() => {
-    if (records.length > 0) {
-      const lastRecord = records.sort((a, b) => b.timestamp - a.timestamp)[0];
-      if (lastRecord.type === 'CLOCK_IN') {
-        setClockMode('CLOCK_OUT');
-      } else {
-        setClockMode('CLOCK_IN');
-      }
-    }
-  }, [records]);
+  // Logic to determine if actions are allowed today
+  const todayStr = new Date().toLocaleDateString();
+  const todaysRecords = records.filter(r => r.dateStr === todayStr);
+  const hasClockedInToday = todaysRecords.some(r => r.type === 'CLOCK_IN');
+  const hasClockedOutToday = todaysRecords.some(r => r.type === 'CLOCK_OUT');
 
   // Handle Profile Update
   const handleProfileSubmit = async (e: React.FormEvent) => {
@@ -310,9 +304,9 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                 <div>
                    <h2 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">Current Status</h2>
                    <div className="flex items-center gap-2">
-                     <span className={`w-2.5 h-2.5 rounded-full ${records.length > 0 && records[0].type === 'CLOCK_IN' ? 'bg-green-500' : 'bg-slate-300'}`}></span>
+                     <span className={`w-2.5 h-2.5 rounded-full ${hasClockedInToday && !hasClockedOutToday ? 'bg-green-500' : 'bg-slate-300'}`}></span>
                      <span className="text-2xl font-bold text-slate-900">
-                        {records.length > 0 && records[0].type === 'CLOCK_IN' ? 'Active' : 'Clocked Out'}
+                        {hasClockedOutToday ? 'Shift Ended' : (hasClockedInToday ? 'Active' : 'Not Started')}
                      </span>
                    </div>
                 </div>
@@ -328,23 +322,28 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                 <Button 
                   onClick={() => handleStartCapture('CLOCK_IN')}
                   variant="primary"
-                  className={clockMode === 'CLOCK_IN' 
+                  className={!hasClockedInToday
                     ? "bg-brand-600 hover:bg-brand-700 shadow-lg shadow-brand-500/20 py-4" 
                     : "bg-white text-slate-400 border border-slate-200 shadow-none hover:bg-slate-50"}
-                  disabled={isProcessing}
+                  disabled={isProcessing || hasClockedInToday}
                 >
-                  Clock In
+                  {hasClockedInToday ? 'Clocked In (Done)' : 'Clock In'}
                 </Button>
                 <Button 
                   onClick={() => handleStartCapture('CLOCK_OUT')}
                   variant="primary"
-                   className={clockMode === 'CLOCK_OUT' 
+                   className={hasClockedInToday && !hasClockedOutToday
                     ? "bg-brand-600 hover:bg-brand-700 shadow-lg shadow-brand-500/20 py-4" 
                     : "bg-white text-slate-400 border border-slate-200 shadow-none hover:bg-slate-50"}
-                   disabled={isProcessing}
+                   disabled={isProcessing || !hasClockedInToday || hasClockedOutToday}
                 >
-                  Clock Out
+                  {hasClockedOutToday ? 'Clocked Out (Done)' : 'Clock Out'}
                 </Button>
+              </div>
+              <div className="mt-3 text-center">
+                 <p className="text-[10px] text-slate-400">
+                    * You can only Clock In and Clock Out once per day.
+                 </p>
               </div>
             </div>
 
