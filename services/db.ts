@@ -1,4 +1,4 @@
-import { neon } from '@netlify/neon';
+import { neon } from '@neondatabase/serverless';
 
 // Initialize the SQL client using the environment variable exposed by Vite
 // We check multiple standard variable names
