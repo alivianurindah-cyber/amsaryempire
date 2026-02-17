@@ -3,6 +3,7 @@ import { Home, LogOut, User as UserIcon, Settings, Calendar, ChefHat, Save, Aler
 import { AppView, AttendanceRecord, LocationData, User } from '../types';
 import { CameraCapture } from './CameraCapture';
 import { AttendanceList } from './AttendanceList';
+import { AttendanceCalendar } from './AttendanceCalendar';
 import { Button } from './Button';
 import { verifyAttendanceImage } from '../services/geminiService';
 import { updateUser } from '../services/auth';
@@ -117,131 +118,6 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
     }
   };
 
-  // Render onboarding if profile incomplete
-  if (!isProfileComplete) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white max-w-2xl w-full rounded-2xl shadow-xl border border-slate-100 overflow-hidden my-8">
-             <div className="bg-brand-600 px-6 py-6 flex items-center gap-3">
-                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                    <UserIcon className="w-6 h-6 text-white" />
-                 </div>
-                 <div>
-                    <h1 className="text-xl font-bold text-white">Staff Profile Setup</h1>
-                    <p className="text-brand-100 text-xs">Complete your personnel file to proceed</p>
-                 </div>
-             </div>
-             
-             <div className="p-6 sm:p-8">
-                <div className="mb-6 bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-3 text-amber-800">
-                    <AlertCircle className="w-5 h-5 shrink-0" />
-                    <p className="text-sm">Welcome to Chef Ammar Group. Please provide your full details for our records.</p>
-                </div>
-
-                {profileError && (
-                  <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-xl flex gap-3 text-red-800">
-                      <AlertCircle className="w-5 h-5 shrink-0" />
-                      <p className="text-sm font-medium">{profileError}</p>
-                  </div>
-                )}
-
-                <form onSubmit={handleProfileSubmit} className="space-y-6">
-                    {/* Reused form fields */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div className="col-span-1 md:col-span-2">
-                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Full Name</label>
-                             <div className="relative">
-                                <input 
-                                    type="text"
-                                    required
-                                    value={profileForm.name}
-                                    onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                                />
-                                <UserIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                             </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">IC / Passport Number</label>
-                            <div className="relative">
-                                <input 
-                                    type="text"
-                                    required
-                                    placeholder="e.g. 900101-14-1234"
-                                    value={profileForm.icNumber}
-                                    onChange={(e) => setProfileForm({...profileForm, icNumber: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                                />
-                                <div className="absolute left-3.5 top-3.5 text-xs font-bold text-slate-400">IC</div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Phone Number</label>
-                            <div className="relative">
-                                <input 
-                                    type="tel"
-                                    required
-                                    placeholder="+60 12-345 6789"
-                                    value={profileForm.phone}
-                                    onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                                />
-                                <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Emergency Contact</label>
-                            <div className="relative">
-                                <input 
-                                    type="tel"
-                                    required
-                                    placeholder="Next of kin phone"
-                                    value={profileForm.emergencyPhone}
-                                    onChange={(e) => setProfileForm({...profileForm, emergencyPhone: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                                />
-                                <HeartPulse className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                            </div>
-                        </div>
-
-                        <div className="col-span-1 md:col-span-2">
-                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Home Address</label>
-                            <div className="relative">
-                                <textarea 
-                                    required
-                                    rows={2}
-                                    placeholder="Full residential address"
-                                    value={profileForm.homeAddress}
-                                    onChange={(e) => setProfileForm({...profileForm, homeAddress: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none"
-                                />
-                                <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <Button 
-                        type="submit" 
-                        fullWidth 
-                        isLoading={profileSaving}
-                        className="mt-6"
-                    >
-                        Save Staff Profile <Save className="w-4 h-4 ml-2" />
-                    </Button>
-                </form>
-                
-                <button onClick={onLogout} className="mt-6 w-full text-center text-xs text-slate-400 hover:text-red-500 transition-colors">
-                    Sign out
-                </button>
-             </div>
-        </div>
-      </div>
-    );
-  }
-
   const handleStartCapture = (mode: 'CLOCK_IN' | 'CLOCK_OUT') => {
     setClockMode(mode);
     setView(AppView.CAMERA);
@@ -306,12 +182,100 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
     );
   }
 
+  // Render onboarding if profile incomplete
+  if (!isProfileComplete) {
+     return (
+        <div className="fixed inset-0 w-full h-[100dvh] bg-slate-50 flex items-center justify-center p-4 sm:relative sm:h-auto sm:bg-transparent">
+             <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden my-8 max-h-[90dvh] flex flex-col">
+                 <div className="bg-brand-600 px-6 py-6 flex items-center gap-3 shrink-0">
+                     <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                        <UserIcon className="w-6 h-6 text-white" />
+                     </div>
+                     <div>
+                        <h1 className="text-xl font-bold text-white">Staff Profile</h1>
+                        <p className="text-brand-100 text-xs">Setup your personnel file</p>
+                     </div>
+                 </div>
+                 
+                 <div className="p-6 overflow-y-auto">
+                    <form onSubmit={handleProfileSubmit} className="space-y-4">
+                        {/* Form Fields - Mobile Optimized */}
+                        <div>
+                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Full Name</label>
+                             <input 
+                                type="text"
+                                required
+                                value={profileForm.name}
+                                onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">IC / Passport</label>
+                            <input 
+                                type="text"
+                                required
+                                value={profileForm.icNumber}
+                                onChange={(e) => setProfileForm({...profileForm, icNumber: e.target.value})}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Phone</label>
+                            <input 
+                                type="tel"
+                                required
+                                value={profileForm.phone}
+                                onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                            />
+                        </div>
+                         <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Emergency Contact</label>
+                            <input 
+                                type="tel"
+                                required
+                                value={profileForm.emergencyPhone}
+                                onChange={(e) => setProfileForm({...profileForm, emergencyPhone: e.target.value})}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Address</label>
+                            <textarea 
+                                required
+                                rows={2}
+                                value={profileForm.homeAddress}
+                                onChange={(e) => setProfileForm({...profileForm, homeAddress: e.target.value})}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none"
+                            />
+                        </div>
+
+                        <Button 
+                            type="submit" 
+                            fullWidth 
+                            isLoading={profileSaving}
+                            className="mt-4"
+                        >
+                            Save Profile
+                        </Button>
+                        <button type="button" onClick={onLogout} className="w-full text-center text-xs text-slate-400 py-2">Sign out</button>
+                    </form>
+                 </div>
+             </div>
+        </div>
+     )
+  }
+
   // Render Dashboard Layout
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 max-w-md mx-auto shadow-2xl overflow-hidden flex flex-col relative border-x border-slate-200">
+    // Mobile: Full screen fixed layout. Desktop: Centered card.
+    <div className="fixed inset-0 w-full h-[100dvh] bg-slate-50 font-sans text-slate-900 sm:relative sm:h-[850px] sm:max-w-md sm:mx-auto sm:shadow-2xl sm:rounded-3xl sm:overflow-hidden flex flex-col sm:border sm:border-slate-200">
       
-      {/* Header */}
-      <header className="bg-white px-6 py-5 sticky top-0 z-20 border-b border-slate-100">
+      {/* Header - Sticky with safe area top padding */}
+      <header className="bg-white px-6 py-4 sticky top-0 z-20 border-b border-slate-100 pt-[calc(1rem+env(safe-area-inset-top))] sm:pt-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-brand-600 p-1.5 rounded-lg">
@@ -325,9 +289,6 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
           <div className="flex items-center gap-3">
              <div className="text-right hidden sm:block">
                 <p className="text-sm font-semibold text-slate-800">{user.name}</p>
-                <p className="text-xs text-slate-500">
-                  {user.department || 'Staff'} {user.employeeId ? `• ${user.employeeId}` : ''}
-                </p>
              </div>
              <div className="relative">
                 <img src={user.avatar} alt="User" className="w-10 h-10 rounded-full border border-slate-200 shadow-sm object-cover" />
@@ -337,14 +298,14 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 p-6 overflow-y-auto scrollbar-hide">
+      {/* Main Content - Scrollable */}
+      <main className="flex-1 p-4 sm:p-6 overflow-y-auto scrollbar-hide pb-24 sm:pb-6">
         
         {/* DASHBOARD VIEW */}
         {view === AppView.DASHBOARD && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
             {/* Status Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-soft border border-slate-100 mb-8">
+            <div className="bg-white rounded-2xl p-6 shadow-soft border border-slate-100 mb-6 sm:mb-8">
               <div className="flex justify-between items-start mb-6">
                 <div>
                    <h2 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">Current Status</h2>
@@ -388,10 +349,10 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
             </div>
 
             {/* Recent Activity */}
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-4 sm:mb-6 flex items-center justify-between">
               <h3 className="font-semibold text-slate-800 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-brand-500" />
-                Activity History
+                History
               </h3>
               <span className="text-xs font-medium text-brand-600 bg-brand-50 px-2.5 py-1 rounded-full">{records.length} Records</span>
             </div>
@@ -399,12 +360,17 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
             {isProcessing && (
                <div className="mb-4 p-4 bg-brand-50 border border-brand-100 text-brand-700 rounded-xl flex items-center justify-center gap-3 animate-pulse">
                   <div className="w-5 h-5 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-sm font-medium">Processing attendance...</span>
+                  <span className="text-sm font-medium">Processing...</span>
                </div>
             )}
 
             <AttendanceList records={records} />
           </div>
+        )}
+
+        {/* CALENDAR VIEW */}
+        {view === AppView.CALENDAR && (
+           <AttendanceCalendar records={records} />
         )}
 
         {/* PROFILE VIEW */}
@@ -427,7 +393,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                {profileSuccess && (
                   <div className="mb-6 bg-green-50 border border-green-100 p-4 rounded-xl flex gap-3 text-green-800 animate-in fade-in slide-in-from-top-2">
                       <CheckCircle className="w-5 h-5 shrink-0" />
-                      <p className="text-sm font-medium">Profile updated successfully!</p>
+                      <p className="text-sm font-medium">Updated successfully!</p>
                   </div>
                )}
 
@@ -442,21 +408,21 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                     required
                                     value={profileForm.name}
                                     onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                                 />
                                 <UserIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                              </div>
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">IC / Passport Number</label>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">IC / Passport</label>
                             <div className="relative">
                                 <input 
                                     type="text"
                                     required
                                     value={profileForm.icNumber}
                                     onChange={(e) => setProfileForm({...profileForm, icNumber: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                                 />
                                 <div className="absolute left-3.5 top-3.5 text-xs font-bold text-slate-400">IC</div>
                             </div>
@@ -470,21 +436,21 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                     required
                                     value={profileForm.phone}
                                     onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                                 />
                                 <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Emergency Contact</label>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Emergency</label>
                             <div className="relative">
                                 <input 
                                     type="tel"
                                     required
                                     value={profileForm.emergencyPhone}
                                     onChange={(e) => setProfileForm({...profileForm, emergencyPhone: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                                 />
                                 <HeartPulse className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                             </div>
@@ -498,7 +464,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                     rows={3}
                                     value={profileForm.homeAddress}
                                     onChange={(e) => setProfileForm({...profileForm, homeAddress: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none"
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none"
                                 />
                                 <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                             </div>
@@ -511,7 +477,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                         isLoading={profileSaving}
                         className="mt-6"
                     >
-                        Save Changes <Save className="w-4 h-4 ml-2" />
+                        Save Changes
                     </Button>
                </form>
              </div>
@@ -557,22 +523,10 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Bell className="w-5 h-5"/></div>
                            <div>
                               <p className="text-sm font-semibold text-slate-900">Notifications</p>
-                              <p className="text-xs text-slate-500">Receive alerts for clock in/out</p>
+                              <p className="text-xs text-slate-500">Receive alerts</p>
                            </div>
                         </div>
                         <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200">
-                           <span className="translate-x-1 inline-block h-4 w-4 transform rounded-full bg-white transition" />
-                        </div>
-                     </div>
-                     <div className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                           <div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Moon className="w-5 h-5"/></div>
-                           <div>
-                              <p className="text-sm font-semibold text-slate-900">Dark Mode</p>
-                              <p className="text-xs text-slate-500">Coming soon</p>
-                           </div>
-                        </div>
-                        <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 opacity-50 cursor-not-allowed">
                            <span className="translate-x-1 inline-block h-4 w-4 transform rounded-full bg-white transition" />
                         </div>
                      </div>
@@ -590,7 +544,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                            <div className="p-2 bg-green-50 text-green-600 rounded-lg"><Shield className="w-5 h-5"/></div>
                            <div>
                               <p className="text-sm font-semibold text-slate-900">Privacy Policy</p>
-                              <p className="text-xs text-slate-500">Read our terms & conditions</p>
+                              <p className="text-xs text-slate-500">Terms & conditions</p>
                            </div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-slate-300" />
@@ -606,14 +560,21 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
 
       </main>
 
-      {/* Navigation */}
-      <nav className="bg-white border-t border-slate-100 px-6 py-3 flex justify-between items-center text-slate-400 z-20">
+      {/* Navigation - Fixed Bottom with safe area padding */}
+      <nav className="bg-white border-t border-slate-100 px-6 py-3 flex justify-between items-center text-slate-400 z-20 pb-[calc(12px+env(safe-area-inset-bottom))] sm:pb-3 sm:absolute sm:bottom-0 sm:w-full">
          <button 
            onClick={() => setView(AppView.DASHBOARD)}
            className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.DASHBOARD ? 'text-brand-600' : 'hover:text-brand-600'}`}
          >
             <Home className="w-6 h-6" />
             <span className="text-[10px] font-medium">Home</span>
+         </button>
+         <button 
+            onClick={() => setView(AppView.CALENDAR)}
+            className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.CALENDAR ? 'text-brand-600' : 'hover:text-brand-600'}`}
+         >
+            <Calendar className="w-6 h-6" />
+            <span className="text-[10px] font-medium">Calendar</span>
          </button>
           <button 
             onClick={() => setView(AppView.PROFILE)}

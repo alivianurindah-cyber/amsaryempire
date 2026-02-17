@@ -37,6 +37,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
         setLoadingLocation(false);
 
         // 2. Get Camera
+        // Prefer rear camera on mobile for attendance proof if needed, but 'user' (front) is standard for selfie
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false
@@ -85,7 +86,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-white">
+      <div className="flex flex-col items-center justify-center h-[100dvh] w-full p-6 text-center bg-white sm:h-[850px] sm:max-w-md sm:mx-auto sm:rounded-3xl sm:border sm:border-slate-200">
         <div className="bg-red-50 p-4 rounded-full mb-4">
             <AlertCircle className="w-10 h-10 text-red-500" />
         </div>
@@ -97,7 +98,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
   }
 
   return (
-    <div className="relative flex flex-col h-full bg-black">
+    // Mobile: Fixed full screen. Desktop: Relative card.
+    <div className="fixed inset-0 w-full h-[100dvh] bg-black sm:relative sm:h-[850px] sm:max-w-md sm:mx-auto sm:rounded-3xl sm:overflow-hidden z-50 flex flex-col">
       {/* Video Stream */}
       <div className="flex-1 relative overflow-hidden bg-slate-900">
         <video
@@ -114,7 +116,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
         </div>
 
         {/* Info Overlay */}
-        <div className="absolute inset-x-0 top-0 p-4 bg-gradient-to-b from-black/50 to-transparent text-white">
+        <div className="absolute inset-x-0 top-0 p-4 pt-[calc(1rem+env(safe-area-inset-top))] bg-gradient-to-b from-black/50 to-transparent text-white">
              <div className="flex justify-between items-center">
                  <div className="bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2">
                     <MapPin className="w-3.5 h-3.5" />
@@ -130,7 +132,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Controls */}
-      <div className="bg-white p-6 pb-8 rounded-t-3xl -mt-6 relative z-10 flex flex-col gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+      <div className="bg-white p-6 pb-[calc(2rem+env(safe-area-inset-bottom))] rounded-t-3xl -mt-6 relative z-10 flex flex-col gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
         
         <div className="text-center mb-2">
             <h2 className="text-2xl font-bold text-slate-900">

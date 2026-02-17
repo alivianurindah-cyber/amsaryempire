@@ -8,7 +8,7 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
   return (
-    <div className="min-h-screen bg-white font-sans text-slate-900 flex flex-col">
+    <div className="min-h-[100dvh] bg-white font-sans text-slate-900 flex flex-col">
       {/* Navigation */}
       <nav className="max-w-7xl mx-auto w-full px-6 py-6 flex justify-between items-center">
         <div className="flex items-center gap-2">
@@ -23,13 +23,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
       </nav>
 
       {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 text-center pb-20">
+      <main className="flex-1 flex flex-col items-center justify-center px-6 text-center pb-20 pt-8 sm:pt-0">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-sm font-medium mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <Star className="w-4 h-4 fill-brand-700" />
           <span>Premier Culinary Services</span>
         </div>
         
-        <h1 className="text-5xl sm:text-7xl font-bold text-slate-900 tracking-tight mb-6 max-w-4xl animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100">
+        <h1 className="text-4xl sm:text-7xl font-bold text-slate-900 tracking-tight mb-6 max-w-4xl animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100">
           Excellence in <span className="text-brand-600">Taste</span> & Service
         </h1>
         
@@ -48,7 +48,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
         </div>
 
         {/* Features Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-24 w-full max-w-5xl animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-16 sm:mt-24 w-full max-w-5xl animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
             <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100">
                 <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center mb-4 mx-auto text-brand-600">
                     <Clock className="w-6 h-6" />

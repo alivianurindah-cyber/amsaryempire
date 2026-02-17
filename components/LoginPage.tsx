@@ -58,12 +58,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 relative">
+    <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-slate-50 relative">
       
       {onBack && (
         <button 
           onClick={onBack}
-          className="absolute top-6 left-6 p-2 rounded-full bg-white text-slate-500 hover:text-slate-900 shadow-sm border border-slate-200 transition-colors"
+          className="absolute top-6 left-6 p-2 rounded-full bg-white text-slate-500 hover:text-slate-900 shadow-sm border border-slate-200 transition-colors z-10"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -107,7 +107,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
                           placeholder="Jane Doe"
-                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
                         />
                         <div className="absolute left-3 top-3.5 text-slate-400">
                           <UserIcon className="w-5 h-5" />
@@ -123,7 +123,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                           value={department}
                           onChange={(e) => setDepartment(e.target.value)}
                           placeholder="Sous Chef"
-                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
                         />
                         <div className="absolute left-3 top-3.5 text-slate-400">
                           <Briefcase className="w-5 h-5" />
@@ -142,7 +142,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="username"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
                     />
                     <div className="absolute left-3 top-3.5 text-slate-400">
                       <AtSign className="w-5 h-5" />
@@ -158,7 +158,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
                     />
                     <div className="absolute left-3 top-3.5 text-slate-400">
                       <Lock className="w-5 h-5" />
