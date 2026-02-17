@@ -1,0 +1,9 @@
+{
+  "name": "GeoAttend AI",
+  "description": "Smart staff attendance system with camera proof, geolocation tagging, and AI verification.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
