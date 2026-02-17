@@ -31,3 +31,21 @@ CREATE TABLE IF NOT EXISTS attendance_records (
   synced BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Insert Default Admin (Password: admin)
+-- Use ON CONFLICT to prevent errors if already exists
+INSERT INTO users (id, username, password, name, role, department, avatar, phone, employee_id, ic_number, home_address, emergency_phone)
+VALUES (
+  'admin-001', 
+  'admin', 
+  'admin', 
+  'System Admin', 
+  'ADMIN', 
+  'Management', 
+  'https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff',
+  '0000000000',
+  'ADM-001',
+  '000000-00-0000',
+  'System HQ',
+  '000'
+) ON CONFLICT (username) DO NOTHING;

@@ -7,16 +7,40 @@ export const initDB = async () => {
     if (isOffline) {
       console.log("System in Offline Mode: Checking LocalStorage schema...");
       
+      let users = JSON.parse(localStorage.getItem('users') || '[]');
+      
       // Initialize Users Table in LocalStorage
       if (!localStorage.getItem('users')) {
         console.log("Creating local 'users' table");
         localStorage.setItem('users', JSON.stringify([]));
+        users = [];
       }
 
       // Initialize Attendance Table in LocalStorage
       if (!localStorage.getItem('attendance_records')) {
         console.log("Creating local 'attendance_records' table");
         localStorage.setItem('attendance_records', JSON.stringify([]));
+      }
+
+      // Check/Create Default Admin for Offline Mode
+      if (!users.find((u: any) => u.username === 'admin')) {
+         console.log("Creating default admin user (Offline)...");
+         users.push({
+            id: 'admin-001',
+            username: 'admin',
+            password: 'admin',
+            name: 'System Admin',
+            role: 'ADMIN',
+            department: 'Management',
+            avatar: 'https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff',
+            phone: '0000000000',
+            employee_id: 'ADM-001',
+            ic_number: '000000-00-0000',
+            home_address: 'System HQ',
+            emergency_phone: '000',
+            created_at: new Date().toISOString()
+         });
+         localStorage.setItem('users', JSON.stringify(users));
       }
 
       return true;
@@ -59,6 +83,31 @@ export const initDB = async () => {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `;
+    
+    // Check/Create Default Admin for SQL Mode
+    // We check existence first to avoid unique constraint errors without relying on ON CONFLICT syntax availability
+    const [adminExists] = await sql`SELECT 1 FROM users WHERE username = 'admin' LIMIT 1`;
+    
+    if (!adminExists) {
+      console.log("Inserting default admin user...");
+      await sql`
+        INSERT INTO users (id, username, password, name, role, department, avatar, phone, employee_id, ic_number, home_address, emergency_phone)
+        VALUES (
+          'admin-001', 
+          'admin', 
+          'admin', 
+          'System Admin', 
+          'ADMIN', 
+          'Management', 
+          'https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff',
+          '0000000000',
+          'ADM-001',
+          '000000-00-0000',
+          'System HQ',
+          '000'
+        )
+      `;
+    }
     
     console.log("Database schema confirmed.");
     return true;
