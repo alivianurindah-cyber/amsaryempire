@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#ffffff">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="format-detection" content="telephone=no">
     <title>GeoAttend AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -40,6 +41,8 @@
         background-color: #f8fafc; /* Slate 50 */
         color: #0f172a; /* Slate 900 */
         overscroll-behavior-y: none; /* Prevent elastic scrolling on mobile */
+        -webkit-tap-highlight-color: transparent; /* Remove gray tap highlight on iOS */
+        -webkit-touch-callout: none;
       }
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
@@ -54,6 +57,12 @@
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #94a3b8; 
+      }
+      /* iOS Input Reset */
+      input, textarea {
+        -webkit-appearance: none;
+        appearance: none;
+        border-radius: 0;
       }
     </style>
   <script type="importmap">

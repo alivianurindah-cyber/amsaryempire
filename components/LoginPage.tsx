@@ -107,7 +107,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
                           placeholder="Jane Doe"
-                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
+                          className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
                         />
                         <div className="absolute left-3 top-3.5 text-slate-400">
                           <UserIcon className="w-5 h-5" />
@@ -123,7 +123,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                           value={department}
                           onChange={(e) => setDepartment(e.target.value)}
                           placeholder="Sous Chef"
-                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
+                          className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
                         />
                         <div className="absolute left-3 top-3.5 text-slate-400">
                           <Briefcase className="w-5 h-5" />
@@ -142,7 +142,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="username"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
                     />
                     <div className="absolute left-3 top-3.5 text-slate-400">
                       <AtSign className="w-5 h-5" />
@@ -158,7 +160,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
+                      className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-11 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
                     />
                     <div className="absolute left-3 top-3.5 text-slate-400">
                       <Lock className="w-5 h-5" />

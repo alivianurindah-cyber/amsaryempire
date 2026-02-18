@@ -193,7 +193,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                 required
                                 value={profileForm.name}
                                 onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                              />
                         </div>
 
@@ -204,7 +204,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                 required
                                 value={profileForm.icNumber}
                                 onChange={(e) => setProfileForm({...profileForm, icNumber: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                             />
                         </div>
 
@@ -215,7 +215,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                 required
                                 value={profileForm.phone}
                                 onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                             />
                         </div>
                          <div>
@@ -225,7 +225,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                 required
                                 value={profileForm.emergencyPhone}
                                 onChange={(e) => setProfileForm({...profileForm, emergencyPhone: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                             />
                         </div>
                         <div>
@@ -235,7 +235,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                 rows={2}
                                 value={profileForm.homeAddress}
                                 onChange={(e) => setProfileForm({...profileForm, homeAddress: e.target.value})}
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none"
+                                className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none"
                             />
                         </div>
 
@@ -412,7 +412,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                     required
                                     value={profileForm.name}
                                     onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                    className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                                 />
                                 <UserIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                              </div>
@@ -426,7 +426,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                     required
                                     value={profileForm.icNumber}
                                     onChange={(e) => setProfileForm({...profileForm, icNumber: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                    className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                                 />
                                 <div className="absolute left-3.5 top-3.5 text-xs font-bold text-slate-400">IC</div>
                             </div>
@@ -440,7 +440,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                     required
                                     value={profileForm.phone}
                                     onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                    className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                                 />
                                 <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                             </div>
@@ -454,7 +454,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                     required
                                     value={profileForm.emergencyPhone}
                                     onChange={(e) => setProfileForm({...profileForm, emergencyPhone: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                    className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                                 />
                                 <HeartPulse className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                             </div>
@@ -468,7 +468,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                     rows={3}
                                     value={profileForm.homeAddress}
                                     onChange={(e) => setProfileForm({...profileForm, homeAddress: e.target.value})}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none"
+                                    className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none"
                                 />
                                 <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                             </div>

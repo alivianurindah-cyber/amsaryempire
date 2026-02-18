@@ -29,33 +29,55 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
 
   // Initialize Camera and Location
   useEffect(() => {
+    let mounted = true;
     const init = async () => {
       try {
         // 1. Get Location
-        setLoadingLocation(true);
+        if (mounted) setLoadingLocation(true);
         const locData = await getCurrentLocation();
-        setLocation(locData);
-        setLoadingLocation(false);
+        if (mounted) {
+            setLocation(locData);
+            setLoadingLocation(false);
+        }
 
         // 2. Get Camera
+        // iOS requires explicit audio: false if not needed to avoid interrupting background music/calls aggressively
+        // We use { ideal: 720 } but iOS often chooses its own resolution close to this.
         const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { 
+              facingMode: 'user', 
+              width: { ideal: 1280 }, 
+              height: { ideal: 720 } 
+          },
           audio: false
         });
-        setStream(mediaStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
+        
+        if (mounted) {
+            setStream(mediaStream);
+            if (videoRef.current) {
+              videoRef.current.srcObject = mediaStream;
+              // Explicitly play() for iOS compatibility
+              videoRef.current.onloadedmetadata = () => {
+                  videoRef.current?.play().catch(e => console.warn("Video play failed:", e));
+              };
+            }
+        } else {
+            // Clean up if component unmounted during async
+            mediaStream.getTracks().forEach(track => track.stop());
         }
       } catch (err: any) {
         console.error("Initialization error:", err);
-        setError(err.message || 'Could not access camera or location.');
-        setLoadingLocation(false);
+        if (mounted) {
+            setError(err.message || 'Could not access camera or location. Ensure permissions are granted.');
+            setLoadingLocation(false);
+        }
       }
     };
 
     init();
 
     return () => {
+      mounted = false;
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
@@ -72,7 +94,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
 
     if (!ctx) return;
 
-    // Set canvas dimensions to match video
+    // Set canvas dimensions to match actual video stream dimension (handles iOS rotations)
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
@@ -99,27 +121,32 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
         year: 'numeric', month: 'short', day: 'numeric', 
         hour: '2-digit', minute: '2-digit', second: '2-digit' 
     });
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillText(dateStr, 20, canvas.height - 50);
+    // Dynamically size font based on image width
+    const fontSize = Math.max(16, Math.floor(canvas.width / 25));
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.fillText(dateStr, 20, canvas.height - (fontSize * 2));
 
     // Draw Location
     const locStr = location.address || `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
-    ctx.font = '16px sans-serif';
+    ctx.font = `${Math.floor(fontSize * 0.7)}px sans-serif`;
+    
     // Truncate if too long
     const maxTextWidth = canvas.width - 40;
     let truncatedLoc = locStr;
     if (ctx.measureText(truncatedLoc).width > maxTextWidth) {
-        // Simple truncation
-        truncatedLoc = locStr.substring(0, 50) + '...';
+        // Simple truncation to fit
+        const charWidth = ctx.measureText("A").width;
+        const maxChars = Math.floor(maxTextWidth / charWidth);
+        truncatedLoc = locStr.substring(0, maxChars - 3) + '...';
     }
-    ctx.fillText(truncatedLoc, 20, canvas.height - 25);
+    ctx.fillText(truncatedLoc, 20, canvas.height - (fontSize * 0.8));
 
     // Draw "Verified" Badge
     ctx.fillStyle = mode === 'CLOCK_IN' ? '#4ade80' : '#f87171'; // Green or Red
-    ctx.fillRect(20, canvas.height - 85, 10, 10);
+    ctx.fillRect(20, canvas.height - (fontSize * 3.5), 10, 10);
     ctx.fillStyle = 'white';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText(mode.replace('_', ' '), 35, canvas.height - 76);
+    ctx.font = `bold ${Math.floor(fontSize * 0.5)}px sans-serif`;
+    ctx.fillText(mode.replace('_', ' '), 35, canvas.height - (fontSize * 3.1));
 
     // Generate image data
     const imageSrc = canvas.toDataURL('image/jpeg', 0.85);
@@ -148,7 +175,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
           autoPlay
           playsInline
           muted
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] pointer-events-none" 
+          /* scale-x-[-1] mirrors the user-facing camera for natural feel */
         />
         
         {/* Simple Guide Frame */}
