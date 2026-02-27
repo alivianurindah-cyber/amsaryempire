@@ -14,6 +14,8 @@ export interface User {
   emergencyPhone?: string;
   typhoidCertificateUrl?: string;
   typhoidExpiryDate?: string;
+  typhoidVerificationStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  typhoidVerificationDetails?: string;
 }
 
 export interface LocationData {

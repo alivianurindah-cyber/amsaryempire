@@ -5,7 +5,7 @@ import { CameraCapture } from './CameraCapture';
 import { AttendanceList } from './AttendanceList';
 import { AttendanceCalendar } from './AttendanceCalendar';
 import { Button } from './Button';
-import { verifyAttendanceImage } from '../services/geminiService';
+import { verifyAttendanceImage, verifyTyphoidCertificate } from '../services/geminiService';
 import { updateUser } from '../services/auth';
 import { getAttendanceRecords, createAttendanceRecord } from '../services/attendance';
 
@@ -33,7 +33,9 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
     emergencyPhone: user.emergencyPhone || '',
     typhoidCertificateUrl: user.typhoidCertificateUrl || '',
     typhoidExpiryDate: user.typhoidExpiryDate || '',
-    avatar: user.avatar || ''
+    avatar: user.avatar || '',
+    typhoidVerificationStatus: user.typhoidVerificationStatus || 'PENDING',
+    typhoidVerificationDetails: user.typhoidVerificationDetails || ''
   });
 
   // Check if all required fields are present (Employee ID is excluded as it is admin-managed)
@@ -64,8 +66,35 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileForm(prev => ({ ...prev, [field]: reader.result as string }));
+      reader.onloadend = async () => {
+        const result = reader.result as string;
+        
+        if (field === 'typhoidCertificateUrl') {
+             setProfileForm(prev => ({ 
+                 ...prev, 
+                 [field]: result,
+                 typhoidVerificationStatus: 'PENDING',
+                 typhoidVerificationDetails: 'Verifying with AI...'
+             }));
+             
+             try {
+                 const verification = await verifyTyphoidCertificate(result);
+                 setProfileForm(prev => ({ 
+                     ...prev, 
+                     typhoidVerificationStatus: verification.isValid ? 'VERIFIED' : 'REJECTED',
+                     typhoidVerificationDetails: verification.reason || (verification.isValid ? 'Verified by AI' : 'Verification failed'),
+                     typhoidExpiryDate: verification.expiryDate || prev.typhoidExpiryDate
+                 }));
+             } catch (error) {
+                 setProfileForm(prev => ({ 
+                     ...prev, 
+                     typhoidVerificationStatus: 'REJECTED',
+                     typhoidVerificationDetails: 'Verification service error'
+                 }));
+             }
+        } else {
+            setProfileForm(prev => ({ ...prev, [field]: result }));
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -110,7 +139,9 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
             emergencyPhone: profileForm.emergencyPhone,
             typhoidCertificateUrl: profileForm.typhoidCertificateUrl,
             typhoidExpiryDate: profileForm.typhoidExpiryDate,
-            avatar: profileForm.avatar
+            avatar: profileForm.avatar,
+            typhoidVerificationStatus: profileForm.typhoidVerificationStatus,
+            typhoidVerificationDetails: profileForm.typhoidVerificationDetails
         });
         
         onUserUpdate(updatedUser);
@@ -276,7 +307,10 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
 
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Certificate Image</label>
-                                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors relative">
+                                    <div className={`border-2 border-dashed rounded-xl p-4 text-center hover:bg-slate-50 transition-colors relative ${
+                                        profileForm.typhoidVerificationStatus === 'VERIFIED' ? 'border-green-200 bg-green-50/50' : 
+                                        profileForm.typhoidVerificationStatus === 'REJECTED' ? 'border-red-200 bg-red-50/50' : 'border-slate-200'
+                                    }`}>
                                         <input 
                                             type="file" 
                                             accept="image/*"
@@ -290,7 +324,27 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                                     alt="Typhoid Certificate" 
                                                     className="max-h-48 mx-auto rounded-lg shadow-sm"
                                                 />
-                                                <div className="mt-2 text-xs text-brand-600 font-medium">Click to replace</div>
+                                                <div className="mt-3">
+                                                    {profileForm.typhoidVerificationStatus === 'PENDING' && (
+                                                        <div className="flex items-center justify-center gap-2 text-brand-600 text-xs font-medium animate-pulse">
+                                                            <div className="w-2 h-2 bg-brand-600 rounded-full animate-bounce"></div>
+                                                            Verifying with AI...
+                                                        </div>
+                                                    )}
+                                                    {profileForm.typhoidVerificationStatus === 'VERIFIED' && (
+                                                        <div className="flex items-center justify-center gap-1 text-green-600 text-xs font-bold">
+                                                            <CheckCircle className="w-3 h-3" />
+                                                            Verified: {profileForm.typhoidVerificationDetails}
+                                                        </div>
+                                                    )}
+                                                    {profileForm.typhoidVerificationStatus === 'REJECTED' && (
+                                                        <div className="flex items-center justify-center gap-1 text-red-600 text-xs font-bold">
+                                                            <AlertCircle className="w-3 h-3" />
+                                                            Rejected: {profileForm.typhoidVerificationDetails}
+                                                        </div>
+                                                    )}
+                                                    <div className="mt-1 text-[10px] text-slate-400">Click to replace</div>
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="py-4">
@@ -585,7 +639,10 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
 
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Certificate Image</label>
-                                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors relative">
+                                    <div className={`border-2 border-dashed rounded-xl p-4 text-center hover:bg-slate-50 transition-colors relative ${
+                                        profileForm.typhoidVerificationStatus === 'VERIFIED' ? 'border-green-200 bg-green-50/50' : 
+                                        profileForm.typhoidVerificationStatus === 'REJECTED' ? 'border-red-200 bg-red-50/50' : 'border-slate-200'
+                                    }`}>
                                         <input 
                                             type="file" 
                                             accept="image/*"
@@ -599,7 +656,27 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                                     alt="Typhoid Certificate" 
                                                     className="max-h-48 mx-auto rounded-lg shadow-sm"
                                                 />
-                                                <div className="mt-2 text-xs text-brand-600 font-medium">Click to replace</div>
+                                                <div className="mt-3">
+                                                    {profileForm.typhoidVerificationStatus === 'PENDING' && (
+                                                        <div className="flex items-center justify-center gap-2 text-brand-600 text-xs font-medium animate-pulse">
+                                                            <div className="w-2 h-2 bg-brand-600 rounded-full animate-bounce"></div>
+                                                            Verifying with AI...
+                                                        </div>
+                                                    )}
+                                                    {profileForm.typhoidVerificationStatus === 'VERIFIED' && (
+                                                        <div className="flex items-center justify-center gap-1 text-green-600 text-xs font-bold">
+                                                            <CheckCircle className="w-3 h-3" />
+                                                            Verified: {profileForm.typhoidVerificationDetails}
+                                                        </div>
+                                                    )}
+                                                    {profileForm.typhoidVerificationStatus === 'REJECTED' && (
+                                                        <div className="flex items-center justify-center gap-1 text-red-600 text-xs font-bold">
+                                                            <AlertCircle className="w-3 h-3" />
+                                                            Rejected: {profileForm.typhoidVerificationDetails}
+                                                        </div>
+                                                    )}
+                                                    <div className="mt-1 text-[10px] text-slate-400">Click to replace</div>
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="py-4">
