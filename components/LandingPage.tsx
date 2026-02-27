@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChefHat, ArrowRight, Star, Clock, ShieldCheck, Users, Music, Volume2, VolumeX } from 'lucide-react';
+import { ChefHat, ArrowRight, Star, Clock, ShieldCheck, Users, Music, Volume2, VolumeX, ListMusic, X, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { Button } from './Button';
 import { getMusicTracks } from '../services/music';
 import { MusicTrack } from '../types';
@@ -13,6 +13,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true); // Start muted for autoplay compliance
+  const [showPlaylist, setShowPlaylist] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -41,6 +45,39 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
       }
     }
   }, [isPlaying, currentTrackIndex]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+        audioRef.current.volume = isMuted ? 0 : volume;
+    }
+  }, [volume, isMuted]);
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) setDuration(audioRef.current.duration);
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = Number(e.target.value);
+    if (audioRef.current) audioRef.current.currentTime = time;
+    setCurrentTime(time);
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const vol = Number(e.target.value);
+    setVolume(vol);
+    setIsMuted(vol === 0);
+  };
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "0:00";
+    const min = Math.floor(time / 60);
+    const sec = Math.floor(time % 60);
+    return `${min}:${sec.toString().padStart(2, '0')}`;
+  };
 
   const currentTrack = tracks[currentTrackIndex];
 
@@ -118,42 +155,133 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
       {/* Music Player Overlay */}
       {currentTrack && (
         <div className="fixed bottom-6 left-6 z-50 max-w-xs w-full bg-white/90 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl p-4 animate-in slide-in-from-bottom-10 duration-700 hidden sm:block">
-            <div className="flex items-center gap-4 mb-3">
-                <div className="w-12 h-12 bg-brand-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/30 animate-pulse">
-                    <Music className="w-6 h-6 text-white" />
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-brand-600 rounded-lg flex items-center justify-center shadow-lg shadow-brand-500/30">
+                    <Music className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-slate-900 truncate">{currentTrack.title}</h3>
+                    <h3 className="font-bold text-slate-900 truncate text-sm">{currentTrack.title}</h3>
                     <p className="text-xs text-slate-500 truncate">{currentTrack.artist}</p>
                 </div>
                 <button 
-                    onClick={() => {
-                        setIsMuted(!isMuted);
-                        if (!isPlaying) setIsPlaying(true);
-                    }}
-                    className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
-                    title={isMuted ? "Unmute" : "Mute"}
+                    onClick={() => setShowPlaylist(!showPlaylist)}
+                    className={`p-1.5 hover:bg-slate-100 rounded-full transition-colors ${showPlaylist ? 'text-brand-600 bg-brand-50' : 'text-slate-400'}`}
+                    title="Playlist"
                 >
-                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                    <ListMusic className="w-4 h-4" />
                 </button>
             </div>
-            
-            {/* Lyrics Scroll */}
-            <div className="h-32 overflow-y-auto text-xs text-slate-600 space-y-2 pr-2 custom-scrollbar bg-slate-50/50 rounded-lg p-3 border border-slate-100">
-                {currentTrack.lyrics ? (
-                    <p className="whitespace-pre-line leading-relaxed font-medium">{currentTrack.lyrics}</p>
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
-                        <Music className="w-4 h-4" />
-                        <span className="italic">Instrumental</span>
-                    </div>
-                )}
+
+            {/* Progress Bar */}
+            <div className="mb-3">
+                <input 
+                    type="range" 
+                    min="0" 
+                    max={duration || 0} 
+                    value={currentTime} 
+                    onChange={handleSeek}
+                    className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-600"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400 font-medium mt-1">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
+                </div>
             </div>
+
+            {/* Controls */}
+            <div className="flex items-center justify-between mb-4">
+                 {/* Volume */}
+                 <div className="flex items-center gap-2 group">
+                    <button 
+                        onClick={() => setIsMuted(!isMuted)} 
+                        className="text-slate-400 hover:text-slate-600"
+                        title={isMuted ? "Unmute" : "Mute"}
+                    >
+                        {isMuted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                    </button>
+                    <input 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.05" 
+                        value={isMuted ? 0 : volume} 
+                        onChange={handleVolumeChange}
+                        className="w-16 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-400"
+                    />
+                 </div>
+
+                 {/* Playback */}
+                 <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => setCurrentTrackIndex((prev) => (prev - 1 + tracks.length) % tracks.length)}
+                        className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                        title="Previous"
+                    >
+                        <SkipBack className="w-4 h-4" />
+                    </button>
+                    <button 
+                        onClick={() => setIsPlaying(!isPlaying)}
+                        className="w-8 h-8 flex items-center justify-center bg-brand-600 text-white rounded-full hover:bg-brand-700 shadow-md transition-transform active:scale-95"
+                        title={isPlaying ? "Pause" : "Play"}
+                    >
+                        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                    </button>
+                    <button 
+                        onClick={() => setCurrentTrackIndex((prev) => (prev + 1) % tracks.length)}
+                        className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                        title="Next"
+                    >
+                        <SkipForward className="w-4 h-4" />
+                    </button>
+                 </div>
+            </div>
+            
+            {/* Playlist View or Lyrics */}
+            {showPlaylist ? (
+                <div className="h-32 overflow-y-auto custom-scrollbar bg-slate-50/50 rounded-lg border border-slate-100">
+                    {tracks.map((track, idx) => (
+                        <div 
+                            key={track.id}
+                            onClick={() => {
+                                setCurrentTrackIndex(idx);
+                                setIsPlaying(true);
+                            }}
+                            className={`p-2 text-xs flex items-center gap-2 cursor-pointer hover:bg-slate-100 transition-colors ${currentTrackIndex === idx ? 'bg-brand-50 text-brand-700 font-medium' : 'text-slate-600'}`}
+                        >
+                            <div className="w-4 text-center opacity-50">
+                                {currentTrackIndex === idx && isPlaying ? (
+                                    <div className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-pulse mx-auto" />
+                                ) : (
+                                    idx + 1
+                                )}
+                            </div>
+                            <div className="truncate flex-1">
+                                {track.title}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                /* Lyrics Scroll */
+                <div className="h-32 overflow-y-auto text-xs text-slate-600 space-y-2 pr-2 custom-scrollbar bg-slate-50/50 rounded-lg p-3 border border-slate-100">
+                    {currentTrack.lyrics ? (
+                        <p className="whitespace-pre-line leading-relaxed font-medium">{currentTrack.lyrics}</p>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
+                            <Music className="w-4 h-4" />
+                            <span className="italic">Instrumental</span>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <audio 
                 ref={audioRef}
                 src={currentTrack.url}
                 muted={isMuted}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
                 onEnded={() => setCurrentTrackIndex((prev) => (prev + 1) % tracks.length)}
                 className="hidden"
             />

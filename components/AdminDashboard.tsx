@@ -47,12 +47,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
     setEditForm({ ...u });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'typhoidCertificateUrl' | 'avatar') => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setEditForm(prev => ({ ...prev, typhoidCertificateUrl: reader.result as string }));
+        setEditForm(prev => ({ ...prev, [field]: reader.result as string }));
       };
       reader.readAsDataURL(file);
     }
@@ -70,7 +70,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
             homeAddress: editForm.homeAddress,
             emergencyPhone: editForm.emergencyPhone,
             typhoidCertificateUrl: editForm.typhoidCertificateUrl,
-            typhoidExpiryDate: editForm.typhoidExpiryDate
+            typhoidExpiryDate: editForm.typhoidExpiryDate,
+            avatar: editForm.avatar
         });
         
         // If the admin is editing their own profile, update global state
@@ -113,8 +114,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                 reader.onloadend = async () => {
                     try {
                         const base64Audio = reader.result as string;
-                        const title = file.name.replace(/\.[^/.]+$/, "");
-                        const artist = "Unknown Artist";
+                        let title = file.name.replace(/\.[^/.]+$/, "");
+                        let artist = "Unknown Artist";
+
+                        // Attempt to extract Artist and Title from filename (Format: Artist - Title)
+                        if (title.includes(" - ")) {
+                            const parts = title.split(" - ");
+                            if (parts.length >= 2) {
+                                artist = parts[0].trim();
+                                title = parts.slice(1).join(" - ").trim();
+                            }
+                        }
 
                         const lyrics = await generateLyrics(base64Audio, title, artist);
 
@@ -211,6 +221,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
             <div className="hidden md:block text-right">
                 <p className="text-sm font-semibold text-slate-900">{user.name}</p>
                 <p className="text-xs text-slate-500 font-medium">Administrator</p>
+            </div>
+            <div className="relative">
+                <img src={user.avatar} alt="User" className="w-10 h-10 rounded-full border border-slate-200 shadow-sm object-cover" />
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
             </div>
             <Button 
                 onClick={onLogout} 
@@ -398,6 +412,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                     <td className="px-6 py-4">
                                         {editingUser?.id === u.id ? (
                                             <div className="space-y-2">
+                                                <div className="flex justify-center mb-2">
+                                                    <div className="relative w-12 h-12">
+                                                        <img 
+                                                            src={editForm.avatar || u.avatar} 
+                                                            className="w-12 h-12 rounded-full object-cover bg-slate-100 border border-slate-200" 
+                                                        />
+                                                        <label className="absolute -bottom-1 -right-1 bg-white p-1 rounded-full shadow border border-slate-200 cursor-pointer hover:bg-slate-50">
+                                                            <Edit2 className="w-3 h-3 text-slate-500" />
+                                                            <input 
+                                                                type="file" 
+                                                                accept="image/*"
+                                                                className="hidden"
+                                                                onChange={(e) => handleFileUpload(e, 'avatar')}
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                </div>
                                                 <input 
                                                     className="w-full border rounded px-2 py-1 text-sm"
                                                     value={editForm.name || ''}
@@ -413,7 +444,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-3">
-                                                <img src={u.avatar} className="w-8 h-8 rounded-full bg-slate-100" />
+                                                <img src={u.avatar} className="w-8 h-8 rounded-full bg-slate-100 object-cover" />
                                                 <div>
                                                     <div className="font-semibold text-slate-900">{u.name}</div>
                                                     {u.icNumber && <div className="text-xs text-slate-500">IC: {u.icNumber}</div>}
@@ -494,7 +525,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                                     <input 
                                                         type="file" 
                                                         accept="image/*"
-                                                        onChange={handleFileUpload}
+                                                        onChange={(e) => handleFileUpload(e, 'typhoidCertificateUrl')}
                                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                     />
                                                     <div className="border border-dashed border-slate-300 rounded px-2 py-1 text-xs text-center text-slate-500 hover:bg-slate-50 cursor-pointer">

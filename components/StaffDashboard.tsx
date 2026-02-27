@@ -32,7 +32,8 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
     homeAddress: user.homeAddress || '',
     emergencyPhone: user.emergencyPhone || '',
     typhoidCertificateUrl: user.typhoidCertificateUrl || '',
-    typhoidExpiryDate: user.typhoidExpiryDate || ''
+    typhoidExpiryDate: user.typhoidExpiryDate || '',
+    avatar: user.avatar || ''
   });
 
   // Check if all required fields are present (Employee ID is excluded as it is admin-managed)
@@ -59,12 +60,12 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
   const hasClockedOutToday = todaysRecords.some(r => r.type === 'CLOCK_OUT');
   const isShiftComplete = hasClockedInToday && hasClockedOutToday;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'typhoidCertificateUrl' | 'avatar') => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setProfileForm(prev => ({ ...prev, typhoidCertificateUrl: reader.result as string }));
+        setProfileForm(prev => ({ ...prev, [field]: reader.result as string }));
       };
       reader.readAsDataURL(file);
     }
@@ -108,7 +109,8 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
             homeAddress: profileForm.homeAddress,
             emergencyPhone: profileForm.emergencyPhone,
             typhoidCertificateUrl: profileForm.typhoidCertificateUrl,
-            typhoidExpiryDate: profileForm.typhoidExpiryDate
+            typhoidExpiryDate: profileForm.typhoidExpiryDate,
+            avatar: profileForm.avatar
         });
         
         onUserUpdate(updatedUser);
@@ -252,6 +254,56 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                 onChange={(e) => setProfileForm({...profileForm, homeAddress: e.target.value})}
                                 className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none"
                             />
+                        </div>
+
+                        {/* Typhoid Vaccination Section */}
+                        <div className="pt-4 border-t border-slate-100">
+                            <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                <Shield className="w-4 h-4 text-brand-500" />
+                                Typhoid Vaccination
+                            </h3>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Expiry Date</label>
+                                    <input 
+                                        type="date"
+                                        value={profileForm.typhoidExpiryDate}
+                                        onChange={(e) => setProfileForm({...profileForm, typhoidExpiryDate: e.target.value})}
+                                        className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Certificate Image</label>
+                                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors relative">
+                                        <input 
+                                            type="file" 
+                                            accept="image/*"
+                                            onChange={(e) => handleFileUpload(e, 'typhoidCertificateUrl')}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        />
+                                        {profileForm.typhoidCertificateUrl ? (
+                                            <div className="relative">
+                                                <img 
+                                                    src={profileForm.typhoidCertificateUrl} 
+                                                    alt="Typhoid Certificate" 
+                                                    className="max-h-48 mx-auto rounded-lg shadow-sm"
+                                                />
+                                                <div className="mt-2 text-xs text-brand-600 font-medium">Click to replace</div>
+                                            </div>
+                                        ) : (
+                                            <div className="py-4">
+                                                <div className="w-10 h-10 bg-brand-50 text-brand-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                    <Plus className="w-5 h-5" />
+                                                </div>
+                                                <p className="text-sm font-medium text-slate-600">Upload Certificate</p>
+                                                <p className="text-xs text-slate-400 mt-1">PNG, JPG up to 5MB</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <Button 
@@ -417,6 +469,30 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                )}
 
                <form onSubmit={handleProfileSubmit} className="space-y-5">
+                    {/* Avatar Upload */}
+                    <div className="flex justify-center mb-6">
+                        <div className="relative">
+                            <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-lg bg-slate-100">
+                                {profileForm.avatar ? (
+                                    <img src={profileForm.avatar} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                        <UserIcon className="w-12 h-12" />
+                                    </div>
+                                )}
+                            </div>
+                            <label className="absolute bottom-0 right-0 bg-brand-600 text-white p-2 rounded-full shadow-md cursor-pointer hover:bg-brand-700 transition-colors">
+                                <Plus className="w-4 h-4" />
+                                <input 
+                                    type="file" 
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleFileUpload(e, 'avatar')}
+                                />
+                            </label>
+                        </div>
+                    </div>
+
                     {/* Reused form fields with same state */}
                     <div className="grid grid-cols-1 gap-5">
                         <div>
@@ -513,7 +589,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                         <input 
                                             type="file" 
                                             accept="image/*"
-                                            onChange={handleFileUpload}
+                                            onChange={(e) => handleFileUpload(e, 'typhoidCertificateUrl')}
                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                         />
                                         {profileForm.typhoidCertificateUrl ? (
