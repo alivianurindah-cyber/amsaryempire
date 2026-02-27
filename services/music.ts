@@ -1,10 +1,11 @@
 import { sql, isOffline } from './db';
 import { MusicTrack } from '../types';
-import { safeJSONParse } from '../src/utils/json';
+import { addTrackToDB, getAllTracksFromDB, deleteTrackFromDB } from './indexedDB';
 
 export const getMusicTracks = async (): Promise<MusicTrack[]> => {
   if (isOffline) {
-    return safeJSONParse(localStorage.getItem('music_tracks'), []);
+    const tracks = await getAllTracksFromDB();
+    return tracks.sort((a, b) => b.createdAt - a.createdAt);
   }
   try {
     const tracks = await sql`SELECT * FROM music_tracks ORDER BY created_at DESC`;
@@ -24,9 +25,7 @@ export const getMusicTracks = async (): Promise<MusicTrack[]> => {
 
 export const addMusicTrack = async (track: MusicTrack): Promise<MusicTrack> => {
   if (isOffline) {
-    const tracks = safeJSONParse(localStorage.getItem('music_tracks'), []);
-    tracks.unshift(track);
-    localStorage.setItem('music_tracks', JSON.stringify(tracks));
+    await addTrackToDB(track);
     return track;
   }
   
@@ -39,9 +38,7 @@ export const addMusicTrack = async (track: MusicTrack): Promise<MusicTrack> => {
 
 export const deleteMusicTrack = async (id: string): Promise<void> => {
   if (isOffline) {
-    const tracks = safeJSONParse(localStorage.getItem('music_tracks'), []);
-    const newTracks = tracks.filter((t: MusicTrack) => t.id !== id);
-    localStorage.setItem('music_tracks', JSON.stringify(newTracks));
+    await deleteTrackFromDB(id);
     return;
   }
   await sql`DELETE FROM music_tracks WHERE id = ${id}`;
