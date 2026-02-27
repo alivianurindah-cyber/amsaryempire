@@ -10,70 +10,58 @@
     <meta name="format-detection" content="telephone=no">
     <title>GeoAttend AI</title>
     <script>
-      // Polyfill and Error Suppression for window.fetch and JSON issues
+      // Robust Polyfill & Error Suppression for window.fetch
       (function() {
-        // 1. Suppress specific errors (dirty hack for environment restrictions)
-        var suppressedErrors = [
-          'Cannot set property fetch',
-          'Unexpected token u in JSON',
-          'Unexpected token \'u\', "undefined" is not valid JSON',
-          '"undefined" is not valid JSON'
-        ];
+        // 1. Aggressive Error Suppression
+        // Handles "Cannot set property fetch" which occurs when libraries try to overwrite the read-only fetch
+        var suppress = function(msg) {
+          return msg && typeof msg === 'string' && msg.includes('Cannot set property fetch');
+        };
 
+        // Capture phase listener
         window.addEventListener('error', function(e) {
-          if (e.message) {
-            for (var i = 0; i < suppressedErrors.length; i++) {
-              if (e.message.includes(suppressedErrors[i])) {
-                console.warn('[Polyfill] Suppressed error:', e.message);
-                e.preventDefault();
-                e.stopPropagation();
-                return true;
-              }
-            }
+          if (suppress(e.message)) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return true;
           }
         }, true);
 
+        // Old-school onerror
+        var originalOnError = window.onerror;
+        window.onerror = function(msg, url, line, col, error) {
+          if (suppress(msg)) return true;
+          if (originalOnError) return originalOnError.apply(this, arguments);
+        };
+
+        // Unhandled Rejection
         window.addEventListener('unhandledrejection', function(e) {
-          if (e.reason && e.reason.message) {
-            for (var i = 0; i < suppressedErrors.length; i++) {
-              if (e.reason.message.includes(suppressedErrors[i])) {
-                console.warn('[Polyfill] Suppressed unhandled rejection:', e.reason.message);
-                e.preventDefault();
-                e.stopPropagation();
-              }
-            }
+          if (e.reason && suppress(e.reason.message)) {
+            e.preventDefault();
+            e.stopPropagation();
           }
         });
 
-        // 2. Try to make window.fetch writable on the instance
-        if (typeof window !== 'undefined') {
-          try {
+        // 2. Attempt to Shadow fetch (Prevent the error if possible)
+        try {
+          if (typeof window !== 'undefined') {
             var originalFetch = window.fetch;
+            // Only try to patch if we can read the original
             if (originalFetch) {
-              // Forcefully define it as an own property, even if it exists
+              // Try to define 'fetch' as a writable own property.
+              // This shadows the getter-only property on the prototype.
               Object.defineProperty(window, 'fetch', {
                 value: originalFetch.bind(window),
                 writable: true,
                 configurable: true,
                 enumerable: true
               });
-              console.log('[Polyfill] Shadowed window.fetch on instance.');
             }
-          } catch (e) {
-            console.warn('[Polyfill] Failed to patch window.fetch:', e);
           }
-        }
-        
-        // 3. Also try globalThis just in case
-        if (typeof globalThis !== 'undefined' && globalThis.fetch) {
-           try {
-              Object.defineProperty(globalThis, 'fetch', {
-                value: globalThis.fetch.bind(globalThis),
-                writable: true,
-                configurable: true,
-                enumerable: true
-              });
-           } catch (e) {}
+        } catch (e) {
+          // If shadowing fails (e.g. security restriction), the suppression above should catch the subsequent library error.
+          console.debug('[Polyfill] Fetch patching failed, relying on suppression:', e);
         }
       })();
     </script>

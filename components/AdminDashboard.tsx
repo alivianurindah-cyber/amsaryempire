@@ -94,46 +94,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   };
 
   const handleMusicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 4 * 1024 * 1024) {
-        alert("File too large. Please upload files smaller than 4MB.");
-        return;
-    }
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setIsUploading(true);
-    
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      try {
-        const base64Audio = reader.result as string;
-        const title = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
-        const artist = "Unknown Artist"; // Could ask user input
 
-        // Generate Lyrics
-        const lyrics = await generateLyrics(base64Audio, title, artist);
+    try {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            
+            if (file.size > 10 * 1024 * 1024) {
+                alert(`File ${file.name} is too large. Skipping. Limit is 10MB.`);
+                continue;
+            }
 
-        const newTrack: MusicTrack = {
-          id: crypto.randomUUID(),
-          title,
-          artist,
-          url: base64Audio,
-          lyrics,
-          createdAt: Date.now()
-        };
+            await new Promise<void>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    try {
+                        const base64Audio = reader.result as string;
+                        const title = file.name.replace(/\.[^/.]+$/, "");
+                        const artist = "Unknown Artist";
 
-        await addMusicTrack(newTrack);
+                        const lyrics = await generateLyrics(base64Audio, title, artist);
+
+                        const newTrack: MusicTrack = {
+                            id: crypto.randomUUID(),
+                            title,
+                            artist,
+                            url: base64Audio,
+                            lyrics,
+                            createdAt: Date.now()
+                        };
+
+                        await addMusicTrack(newTrack);
+                        resolve();
+                    } catch (err) {
+                        console.error(`Failed to process ${file.name}`, err);
+                        resolve(); 
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        
         const tracks = await getMusicTracks();
         setMusicTracks(tracks);
-      } catch (error) {
-        console.error("Upload failed", error);
-        alert("Failed to upload music track.");
-      } finally {
+    } catch (error) {
+        console.error("Bulk upload error", error);
+        alert("An error occurred during upload.");
+    } finally {
         setIsUploading(false);
-      }
-    };
-    reader.readAsDataURL(file);
+        e.target.value = ''; 
+    }
   };
 
   const handleDeleteTrack = async (id: string) => {
@@ -547,6 +560,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                         <input
                             type="file"
                             accept="audio/*"
+                            multiple
                             onChange={handleMusicUpload}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             disabled={isUploading}
