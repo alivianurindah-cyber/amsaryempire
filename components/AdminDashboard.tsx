@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Music, Upload, Play, Pause, FileAudio } from 'lucide-react';
+import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Music, Upload, Play, Pause, FileAudio, DollarSign, FileText, Calendar } from 'lucide-react';
 import { AttendanceRecord, User, MusicTrack } from '../types';
 import { Button } from './Button';
 import { getUsers, updateUser, deleteUser } from '../services/auth';
@@ -14,12 +14,16 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUserUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'MUSIC'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'MUSIC' | 'PAYROLL'>('LOGS');
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
+  
+  // Payroll State
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [showPayslip, setShowPayslip] = useState<string | null>(null); // User ID for payslip modal
   
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,7 +75,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
             emergencyPhone: editForm.emergencyPhone,
             typhoidCertificateUrl: editForm.typhoidCertificateUrl,
             typhoidExpiryDate: editForm.typhoidExpiryDate,
-            avatar: editForm.avatar
+            avatar: editForm.avatar,
+            shiftStart: editForm.shiftStart,
+            shiftEnd: editForm.shiftEnd,
+            baseSalary: editForm.baseSalary
         });
         
         // If the admin is editing their own profile, update global state
@@ -132,12 +139,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             id: crypto.randomUUID(),
                             title,
                             artist,
-                            url: base64Audio,
+                            url: base64Audio, // Still provide base64 for online fallback or if blob fails
                             lyrics,
                             createdAt: Date.now()
                         };
 
-                        await addMusicTrack(newTrack);
+                        await addMusicTrack(newTrack, file);
                         resolve();
                     } catch (err) {
                         console.error(`Failed to process ${file.name}`, err);
@@ -215,6 +222,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                     className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'MUSIC' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     Music
+                </button>
+                <button 
+                    onClick={() => setActiveTab('PAYROLL')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'PAYROLL' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    Payroll
                 </button>
             </div>
 
@@ -454,13 +467,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                     </td>
                                     <td className="px-6 py-4">
                                         {editingUser?.id === u.id ? (
-                                            <input 
-                                                className="w-full border rounded px-2 py-1 text-sm"
-                                                value={editForm.department || ''}
-                                                onChange={e => setEditForm({...editForm, department: e.target.value})}
-                                            />
+                                            <div className="space-y-2">
+                                                <input 
+                                                    className="w-full border rounded px-2 py-1 text-sm"
+                                                    value={editForm.department || ''}
+                                                    onChange={e => setEditForm({...editForm, department: e.target.value})}
+                                                    placeholder="Department"
+                                                />
+                                                <div className="grid grid-cols-2 gap-1">
+                                                    <div>
+                                                        <label className="text-[10px] text-slate-400 block">Shift Start</label>
+                                                        <input 
+                                                            type="time"
+                                                            className="w-full border rounded px-1 py-1 text-xs"
+                                                            value={editForm.shiftStart || ''}
+                                                            onChange={e => setEditForm({...editForm, shiftStart: e.target.value})}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] text-slate-400 block">Shift End</label>
+                                                        <input 
+                                                            type="time"
+                                                            className="w-full border rounded px-1 py-1 text-xs"
+                                                            value={editForm.shiftEnd || ''}
+                                                            onChange={e => setEditForm({...editForm, shiftEnd: e.target.value})}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] text-slate-400 block">Base Salary (RM)</label>
+                                                    <input 
+                                                        type="number"
+                                                        className="w-full border rounded px-2 py-1 text-xs"
+                                                        value={editForm.baseSalary || ''}
+                                                        onChange={e => setEditForm({...editForm, baseSalary: Number(e.target.value)})}
+                                                        placeholder="0.00"
+                                                    />
+                                                </div>
+                                            </div>
                                         ) : (
-                                            <span className="text-sm text-slate-600">{u.department || '-'}</span>
+                                            <div className="space-y-1">
+                                                <span className="text-sm text-slate-600 block">{u.department || '-'}</span>
+                                                {(u.shiftStart || u.shiftEnd) && (
+                                                    <div className="text-xs text-slate-400 flex items-center gap-1">
+                                                        <Clock className="w-3 h-3" />
+                                                        {u.shiftStart || '?'} - {u.shiftEnd || '?'}
+                                                    </div>
+                                                )}
+                                                {u.baseSalary && (
+                                                    <div className="text-xs text-green-600 font-medium">
+                                                        RM {u.baseSalary.toLocaleString()}
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
                                     </td>
                                     <td className="px-6 py-4">
@@ -637,6 +696,282 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             <p>No music tracks uploaded yet.</p>
                         </div>
                     )}
+                </div>
+            </div>
+        )}
+        {/* PAYROLL TABLE */}
+        {activeTab === 'PAYROLL' && (
+            <div className="space-y-6">
+                <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="p-2 bg-brand-50 rounded-lg text-brand-600">
+                            <DollarSign className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-slate-900">Payroll Summary</h2>
+                            <p className="text-sm text-slate-500">Manage salaries and deductions</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Calendar className="w-5 h-5 text-slate-400" />
+                        <input 
+                            type="month" 
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                        />
+                    </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                <tr>
+                                    <th className="px-6 py-4">Staff Member</th>
+                                    <th className="px-6 py-4 text-center">Days Worked</th>
+                                    <th className="px-6 py-4 text-center">Late (Days)</th>
+                                    <th className="px-6 py-4 text-right">Base Salary</th>
+                                    <th className="px-6 py-4 text-right text-red-600">Deductions</th>
+                                    <th className="px-6 py-4 text-right text-green-600">Net Salary</th>
+                                    <th className="px-6 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {users.filter(u => u.role !== 'ADMIN').map(u => {
+                                    const [year, month] = selectedMonth.split('-').map(Number);
+                                    const userRecords = records.filter(r => {
+                                        const d = new Date(r.timestamp);
+                                        return r.userId === u.id && 
+                                               d.getMonth() + 1 === month && 
+                                               d.getFullYear() === year &&
+                                               r.type === 'CLOCK_IN';
+                                    });
+
+                                    const totalDays = new Set(userRecords.map(r => r.dateStr)).size;
+                                    
+                                    let lateOccurrences = 0;
+                                    let totalDeductions = 0;
+
+                                    userRecords.forEach(r => {
+                                        if (!u.shiftStart) return;
+                                        
+                                        const recordTime = new Date(r.timestamp);
+                                        const [shiftHour, shiftMinute] = u.shiftStart.split(':').map(Number);
+                                        
+                                        const shiftTime = new Date(recordTime);
+                                        shiftTime.setHours(shiftHour, shiftMinute, 0, 0);
+
+                                        // Calculate difference in minutes
+                                        // We only care if they are late (recordTime > shiftTime)
+                                        if (recordTime > shiftTime) {
+                                            const diffMs = recordTime.getTime() - shiftTime.getTime();
+                                            const diffMins = Math.floor(diffMs / 60000);
+
+                                            if (diffMins > 0) {
+                                                lateOccurrences++;
+                                                if (diffMins <= 30) {
+                                                    totalDeductions += 15;
+                                                } else {
+                                                    totalDeductions += 25;
+                                                }
+                                            }
+                                        }
+                                    });
+
+                                    const baseSalary = u.baseSalary || 0;
+                                    const netSalary = Math.max(0, baseSalary - totalDeductions);
+
+                                    return (
+                                        <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <img src={u.avatar} className="w-8 h-8 rounded-full bg-slate-100 object-cover" />
+                                                    <div>
+                                                        <div className="font-semibold text-slate-900">{u.name}</div>
+                                                        <div className="text-xs text-slate-500">{u.department}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center font-medium text-slate-700">
+                                                {totalDays}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                {lateOccurrences > 0 ? (
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                        {lateOccurrences}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-mono text-sm">
+                                                RM {baseSalary.toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-mono text-sm text-red-600">
+                                                {totalDeductions > 0 ? `- RM ${totalDeductions}` : '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-mono text-sm font-bold text-green-600">
+                                                RM {netSalary.toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="secondary"
+                                                    onClick={() => setShowPayslip(u.id)}
+                                                    className="gap-2"
+                                                >
+                                                    <FileText className="w-4 h-4" /> Payslip
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Payslip Modal */}
+        {showPayslip && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden animate-in fade-in zoom-in duration-300">
+                    {(() => {
+                        const u = users.find(user => user.id === showPayslip);
+                        if (!u) return null;
+
+                        const [year, month] = selectedMonth.split('-').map(Number);
+                        const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' });
+                        
+                        const userRecords = records.filter(r => {
+                            const d = new Date(r.timestamp);
+                            return r.userId === u.id && 
+                                   d.getMonth() + 1 === month && 
+                                   d.getFullYear() === year &&
+                                   r.type === 'CLOCK_IN';
+                        });
+
+                        let totalDeductions = 0;
+                        const deductionDetails: { date: string, time: string, lateMins: number, amount: number }[] = [];
+
+                        userRecords.forEach(r => {
+                            if (!u.shiftStart) return;
+                            
+                            const recordTime = new Date(r.timestamp);
+                            const [shiftHour, shiftMinute] = u.shiftStart.split(':').map(Number);
+                            const shiftTime = new Date(recordTime);
+                            shiftTime.setHours(shiftHour, shiftMinute, 0, 0);
+
+                            if (recordTime > shiftTime) {
+                                const diffMs = recordTime.getTime() - shiftTime.getTime();
+                                const diffMins = Math.floor(diffMs / 60000);
+
+                                if (diffMins > 0) {
+                                    const amount = diffMins <= 30 ? 15 : 25;
+                                    totalDeductions += amount;
+                                    deductionDetails.push({
+                                        date: r.dateStr,
+                                        time: r.timeStr,
+                                        lateMins: diffMins,
+                                        amount
+                                    });
+                                }
+                            }
+                        });
+
+                        const baseSalary = u.baseSalary || 0;
+                        const netSalary = Math.max(0, baseSalary - totalDeductions);
+
+                        return (
+                            <>
+                                <div className="bg-slate-900 text-white p-6 flex justify-between items-start">
+                                    <div>
+                                        <h2 className="text-2xl font-bold mb-1">Payslip</h2>
+                                        <p className="text-slate-400">{monthName} {year}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <h3 className="font-bold text-lg">Chef Ammar Group</h3>
+                                        <p className="text-xs text-slate-400">Strictly Private & Confidential</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="p-8">
+                                    <div className="flex justify-between mb-8 pb-8 border-b border-slate-100">
+                                        <div>
+                                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Employee</p>
+                                            <h3 className="font-bold text-lg text-slate-900">{u.name}</h3>
+                                            <p className="text-sm text-slate-600">{u.department}</p>
+                                            <p className="text-xs text-slate-400 mt-1">{u.employeeId || 'ID: Pending'}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Payment Details</p>
+                                            <div className="text-sm text-slate-600">
+                                                <div className="flex justify-between gap-8 mb-1">
+                                                    <span>Base Salary:</span>
+                                                    <span className="font-mono">RM {baseSalary.toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between gap-8">
+                                                    <span>Shift:</span>
+                                                    <span className="font-mono">{u.shiftStart || 'N/A'} - {u.shiftEnd || 'N/A'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mb-8">
+                                        <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                            <Clock className="w-4 h-4 text-red-500" /> Late Deductions
+                                        </h4>
+                                        {deductionDetails.length > 0 ? (
+                                            <div className="bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                                                <table className="w-full text-sm">
+                                                    <thead className="bg-slate-100 text-xs text-slate-500 font-semibold text-left">
+                                                        <tr>
+                                                            <th className="px-4 py-2">Date</th>
+                                                            <th className="px-4 py-2">Time In</th>
+                                                            <th className="px-4 py-2">Late By</th>
+                                                            <th className="px-4 py-2 text-right">Deduction</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100">
+                                                        {deductionDetails.map((d, i) => (
+                                                            <tr key={i}>
+                                                                <td className="px-4 py-2 text-slate-600">{d.date}</td>
+                                                                <td className="px-4 py-2 text-slate-600">{d.time}</td>
+                                                                <td className="px-4 py-2 text-red-500 font-medium">{d.lateMins} mins</td>
+                                                                <td className="px-4 py-2 text-right font-mono text-slate-900">RM {d.amount}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-slate-500 italic">No late deductions for this period. Great job!</p>
+                                        )}
+                                    </div>
+
+                                    <div className="bg-slate-50 rounded-xl p-6 flex justify-between items-center border border-slate-200">
+                                        <div>
+                                            <p className="text-sm text-slate-500 mb-1">Total Net Salary</p>
+                                            <p className="text-xs text-slate-400">Base - Deductions</p>
+                                        </div>
+                                        <div className="text-3xl font-bold text-brand-600 font-mono">
+                                            RM {netSalary.toLocaleString()}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+                                    <Button variant="ghost" onClick={() => setShowPayslip(null)}>Close</Button>
+                                    <Button onClick={() => window.print()}>
+                                        <FileText className="w-4 h-4 mr-2" /> Print Payslip
+                                    </Button>
+                                </div>
+                            </>
+                        );
+                    })()}
                 </div>
             </div>
         )}

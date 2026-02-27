@@ -72,6 +72,19 @@ export const initDB = async () => {
       );
     `;
 
+    // Add new columns if they don't exist
+    try {
+        await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS typhoid_certificate_url TEXT`;
+        await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS typhoid_expiry_date TEXT`;
+        await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS typhoid_verification_status TEXT`;
+        await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS typhoid_verification_details TEXT`;
+        await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS shift_start TEXT`;
+        await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS shift_end TEXT`;
+        await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS base_salary NUMERIC`;
+    } catch (e) {
+        console.log("Migration note: Columns might already exist or error adding them:", e);
+    }
+
     // SQL Mode: Create Attendance Records Table
     await sql`
       CREATE TABLE IF NOT EXISTS attendance_records (

@@ -26,12 +26,22 @@ export const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
-export const addTrackToDB = async (track: MusicTrack): Promise<void> => {
+export const addTrackToDB = async (track: MusicTrack, file?: Blob): Promise<void> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
-    const request = store.put(track);
+    
+    const trackToStore = { ...track };
+    if (file) {
+      // Store the blob directly and clear the base64 URL to save space
+      // We use a separate property 'blob' that isn't in the MusicTrack interface
+      // but IndexedDB allows storing arbitrary objects
+      (trackToStore as any).blob = file;
+      trackToStore.url = ''; 
+    }
+
+    const request = store.put(trackToStore);
 
     request.onsuccess = () => resolve();
     request.onerror = (event) => reject((event.target as IDBRequest).error);
@@ -45,7 +55,16 @@ export const getAllTracksFromDB = async (): Promise<MusicTrack[]> => {
     const store = transaction.objectStore(STORE_NAME);
     const request = store.getAll();
 
-    request.onsuccess = () => resolve(request.result as MusicTrack[]);
+    request.onsuccess = () => {
+      const tracks = request.result.map((t: any) => {
+        if (t.blob instanceof Blob) {
+          // Recreate the URL from the stored blob
+          t.url = URL.createObjectURL(t.blob);
+        }
+        return t as MusicTrack;
+      });
+      resolve(tracks);
+    };
     request.onerror = (event) => reject((event.target as IDBRequest).error);
   });
 };

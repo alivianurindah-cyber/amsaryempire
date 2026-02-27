@@ -16,6 +16,9 @@ export interface User {
   typhoidExpiryDate?: string;
   typhoidVerificationStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED';
   typhoidVerificationDetails?: string;
+  shiftStart?: string; // "HH:mm"
+  shiftEnd?: string; // "HH:mm"
+  baseSalary?: number;
 }
 
 export interface LocationData {

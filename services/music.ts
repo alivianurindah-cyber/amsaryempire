@@ -23,12 +23,14 @@ export const getMusicTracks = async (): Promise<MusicTrack[]> => {
   }
 };
 
-export const addMusicTrack = async (track: MusicTrack): Promise<MusicTrack> => {
+export const addMusicTrack = async (track: MusicTrack, file?: File): Promise<MusicTrack> => {
   if (isOffline) {
-    await addTrackToDB(track);
+    await addTrackToDB(track, file);
     return track;
   }
   
+  // For online mode, we still use the base64 URL if provided, or handle file upload differently if backend supports it
+  // Assuming for now the backend expects base64 in the URL field as before
   await sql`
     INSERT INTO music_tracks (id, title, artist, url, lyrics, created_at)
     VALUES (${track.id}, ${track.title}, ${track.artist}, ${track.url}, ${track.lyrics}, ${track.created_at || track.createdAt})

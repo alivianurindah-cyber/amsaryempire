@@ -26,7 +26,12 @@ const mapUser = (row: any): User => ({
   homeAddress: row.home_address,
   emergencyPhone: row.emergency_phone,
   typhoidCertificateUrl: row.typhoid_certificate_url,
-  typhoidExpiryDate: row.typhoid_expiry_date
+  typhoidExpiryDate: row.typhoid_expiry_date,
+  typhoidVerificationStatus: row.typhoid_verification_status,
+  typhoidVerificationDetails: row.typhoid_verification_details,
+  shiftStart: row.shift_start,
+  shiftEnd: row.shift_end,
+  baseSalary: row.base_salary ? Number(row.base_salary) : undefined
 });
 
 export const getUsers = async (): Promise<User[]> => {
@@ -64,8 +69,13 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
         emergency_phone: updatedUser.emergencyPhone ?? existing.emergency_phone,
         typhoid_certificate_url: updatedUser.typhoidCertificateUrl ?? existing.typhoid_certificate_url,
         typhoid_expiry_date: updatedUser.typhoidExpiryDate ?? existing.typhoid_expiry_date,
+        typhoid_verification_status: updatedUser.typhoidVerificationStatus ?? existing.typhoid_verification_status,
+        typhoid_verification_details: updatedUser.typhoidVerificationDetails ?? existing.typhoid_verification_details,
         department: updatedUser.department ?? existing.department,
-        employee_id: updatedUser.employeeId ?? existing.employee_id
+        employee_id: updatedUser.employeeId ?? existing.employee_id,
+        shift_start: updatedUser.shiftStart ?? existing.shift_start,
+        shift_end: updatedUser.shiftEnd ?? existing.shift_end,
+        base_salary: updatedUser.baseSalary ?? existing.base_salary
       };
 
       users[index] = updatedRow;
@@ -92,8 +102,13 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
     const emergencyPhone = updatedUser.emergencyPhone ?? existing.emergency_phone;
     const typhoidCertificateUrl = updatedUser.typhoidCertificateUrl ?? existing.typhoid_certificate_url;
     const typhoidExpiryDate = updatedUser.typhoidExpiryDate ?? existing.typhoid_expiry_date;
+    const typhoidVerificationStatus = updatedUser.typhoidVerificationStatus ?? existing.typhoid_verification_status;
+    const typhoidVerificationDetails = updatedUser.typhoidVerificationDetails ?? existing.typhoid_verification_details;
     const department = updatedUser.department ?? existing.department;
     const employeeId = updatedUser.employeeId ?? existing.employee_id;
+    const shiftStart = updatedUser.shiftStart ?? existing.shift_start;
+    const shiftEnd = updatedUser.shiftEnd ?? existing.shift_end;
+    const baseSalary = updatedUser.baseSalary ?? existing.base_salary;
 
     const [updatedRow] = await sql`
       UPDATE users 
@@ -105,8 +120,13 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
         emergency_phone = ${emergencyPhone},
         typhoid_certificate_url = ${typhoidCertificateUrl},
         typhoid_expiry_date = ${typhoidExpiryDate},
+        typhoid_verification_status = ${typhoidVerificationStatus},
+        typhoid_verification_details = ${typhoidVerificationDetails},
         department = ${department},
-        employee_id = ${employeeId}
+        employee_id = ${employeeId},
+        shift_start = ${shiftStart},
+        shift_end = ${shiftEnd},
+        base_salary = ${baseSalary}
       WHERE id = ${updatedUser.id}
       RETURNING *
     `;
