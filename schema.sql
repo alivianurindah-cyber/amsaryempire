@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
   ic_number TEXT,
   home_address TEXT,
   emergency_phone TEXT,
+  typhoid_certificate_url TEXT,
+  typhoid_expiry_date TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

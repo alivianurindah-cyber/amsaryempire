@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Search, MapPin, Clock, Filter, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus } from 'lucide-react';
-import { AttendanceRecord, User } from '../types';
+import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Music, Upload, Play, Pause, FileAudio } from 'lucide-react';
+import { AttendanceRecord, User, MusicTrack } from '../types';
 import { Button } from './Button';
-import { getUsers, updateUser, deleteUser, register } from '../services/auth';
+import { getUsers, updateUser, deleteUser } from '../services/auth';
 import { getAttendanceRecords } from '../services/attendance';
+import { getMusicTracks, addMusicTrack, deleteMusicTrack } from '../services/music';
+import { generateLyrics } from '../services/geminiService';
 
 interface AdminDashboardProps {
   user: User;
@@ -12,9 +14,12 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUserUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'MUSIC'>('LOGS');
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
   
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,6 +36,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         setRecords(recs);
         const usrs = await getUsers();
         setUsers(usrs);
+        const tracks = await getMusicTracks();
+        setMusicTracks(tracks);
     };
     loadData();
   }, [activeTab]);
@@ -38,6 +45,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   const handleEditClick = (u: User) => {
     setEditingUser(u);
     setEditForm({ ...u });
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditForm(prev => ({ ...prev, typhoidCertificateUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSaveUser = async () => {
@@ -51,6 +69,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
             icNumber: editForm.icNumber,
             homeAddress: editForm.homeAddress,
             emergencyPhone: editForm.emergencyPhone,
+            typhoidCertificateUrl: editForm.typhoidCertificateUrl,
+            typhoidExpiryDate: editForm.typhoidExpiryDate
         });
         
         // If the admin is editing their own profile, update global state
@@ -71,6 +91,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         const usrs = await getUsers();
         setUsers(usrs);
     }
+  };
+
+  const handleMusicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 4 * 1024 * 1024) {
+        alert("File too large. Please upload files smaller than 4MB.");
+        return;
+    }
+
+    setIsUploading(true);
+    
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64Audio = reader.result as string;
+        const title = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+        const artist = "Unknown Artist"; // Could ask user input
+
+        // Generate Lyrics
+        const lyrics = await generateLyrics(base64Audio, title, artist);
+
+        const newTrack: MusicTrack = {
+          id: crypto.randomUUID(),
+          title,
+          artist,
+          url: base64Audio,
+          lyrics,
+          createdAt: Date.now()
+        };
+
+        await addMusicTrack(newTrack);
+        const tracks = await getMusicTracks();
+        setMusicTracks(tracks);
+      } catch (error) {
+        console.error("Upload failed", error);
+        alert("Failed to upload music track.");
+      } finally {
+        setIsUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDeleteTrack = async (id: string) => {
+      if (window.confirm('Delete this track?')) {
+          await deleteMusicTrack(id);
+          const tracks = await getMusicTracks();
+          setMusicTracks(tracks);
+      }
   };
 
   const filteredRecords = records.filter(record => {
@@ -115,6 +186,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                     className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'STAFF' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     Staff Management
+                </button>
+                <button 
+                    onClick={() => setActiveTab('MUSIC')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'MUSIC' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    Music
                 </button>
             </div>
 
@@ -202,9 +279,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                 </div>
             )}
             {activeTab === 'STAFF' && (
-                 <Button className="shrink-0 gap-2">
-                    <Plus className="w-4 h-4" /> Add Staff
-                 </Button>
+                 <div className="flex gap-2">
+                     <Button 
+                        variant="secondary"
+                        onClick={() => { setSearchTerm(''); }}
+                        className="shrink-0 text-slate-600 border-slate-200 hover:bg-slate-50"
+                     >
+                        View All
+                     </Button>
+                     <Button className="shrink-0 gap-2">
+                        <Plus className="w-4 h-4" /> Add Staff
+                     </Button>
+                 </div>
             )}
         </div>
 
@@ -289,6 +375,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                 <th className="px-6 py-4">Contact Info</th>
                                 <th className="px-6 py-4">Emp ID</th>
                                 <th className="px-6 py-4">Address</th>
+                                <th className="px-6 py-4">Typhoid Cert</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -381,6 +468,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                             </span>
                                         )}
                                     </td>
+                                    <td className="px-6 py-4">
+                                        {editingUser?.id === u.id ? (
+                                            <div className="space-y-2">
+                                                <input 
+                                                    type="date"
+                                                    className="w-full border rounded px-2 py-1 text-xs"
+                                                    value={editForm.typhoidExpiryDate || ''}
+                                                    onChange={e => setEditForm({...editForm, typhoidExpiryDate: e.target.value})}
+                                                />
+                                                <div className="relative">
+                                                    <input 
+                                                        type="file" 
+                                                        accept="image/*"
+                                                        onChange={handleFileUpload}
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                    />
+                                                    <div className="border border-dashed border-slate-300 rounded px-2 py-1 text-xs text-center text-slate-500 hover:bg-slate-50 cursor-pointer">
+                                                        {editForm.typhoidCertificateUrl ? 'Change Img' : 'Upload'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-xs">
+                                                {u.typhoidExpiryDate ? (
+                                                    <div className={`font-medium ${new Date(u.typhoidExpiryDate) < new Date() ? 'text-red-500' : 'text-green-600'}`}>
+                                                        Exp: {u.typhoidExpiryDate}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-slate-400 italic">Not set</div>
+                                                )}
+                                                {u.typhoidCertificateUrl && (
+                                                    <a href={u.typhoidCertificateUrl} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline mt-1 block">
+                                                        View Cert
+                                                    </a>
+                                                )}
+                                            </div>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             {editingUser?.id === u.id ? (
@@ -410,6 +535,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             ))}
                         </tbody>
                     </table>
+                </div>
+            </div>
+        )}
+        {/* MUSIC TABLE */}
+        {activeTab === 'MUSIC' && (
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-lg font-semibold text-slate-900">Music Library</h2>
+                    <div className="relative">
+                        <input
+                            type="file"
+                            accept="audio/*"
+                            onChange={handleMusicUpload}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            disabled={isUploading}
+                        />
+                        <Button disabled={isUploading} className="gap-2">
+                            {isUploading ? (
+                                <>Uploading...</>
+                            ) : (
+                                <><Upload className="w-4 h-4" /> Upload Track</>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                    {musicTracks.map(track => (
+                        <div key={track.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center text-brand-600">
+                                    <Music className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-slate-900">{track.title}</h3>
+                                    <p className="text-xs text-slate-500">{track.artist}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-4">
+                                <audio controls src={track.url} className="h-8 w-64" />
+                                <Button 
+                                    variant="ghost" 
+                                    onClick={() => handleDeleteTrack(track.id)}
+                                    className="text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    ))}
+                    {musicTracks.length === 0 && (
+                        <div className="text-center py-12 text-slate-400">
+                            <Music className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                            <p>No music tracks uploaded yet.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         )}

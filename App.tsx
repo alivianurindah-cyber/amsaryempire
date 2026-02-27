@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { LoginPage } from './components/LoginPage';
 import { StaffDashboard } from './components/StaffDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -11,14 +11,12 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
-  const [dbInitialized, setDbInitialized] = useState(false);
 
   // Initialize DB and Check for existing session on boot
   useEffect(() => {
     const boot = async () => {
       // 1. Ensure DB tables exist
       await initDB();
-      setDbInitialized(true);
 
       // 2. Check Session
       const session = getSession();

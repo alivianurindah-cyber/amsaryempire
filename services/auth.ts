@@ -1,5 +1,6 @@
 import { User } from '../types';
 import { sql, isOffline } from './db';
+import { safeJSONParse } from '../src/utils/json';
 
 const SESSION_KEY = 'geo_user_session';
 
@@ -23,13 +24,15 @@ const mapUser = (row: any): User => ({
   employeeId: row.employee_id,
   icNumber: row.ic_number,
   homeAddress: row.home_address,
-  emergencyPhone: row.emergency_phone
+  emergencyPhone: row.emergency_phone,
+  typhoidCertificateUrl: row.typhoid_certificate_url,
+  typhoidExpiryDate: row.typhoid_expiry_date
 });
 
 export const getUsers = async (): Promise<User[]> => {
   try {
     if (isOffline) {
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const users = safeJSONParse(localStorage.getItem('users'), []);
       return users.map(mapUser);
     }
 
@@ -44,7 +47,7 @@ export const getUsers = async (): Promise<User[]> => {
 export const updateUser = async (updatedUser: Partial<User> & { id: string }): Promise<User> => {
   try {
     if (isOffline) {
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const users = safeJSONParse(localStorage.getItem('users'), []);
       const index = users.findIndex((u: any) => u.id === updatedUser.id);
       
       if (index === -1) throw new Error("User not found");
@@ -59,6 +62,8 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
         ic_number: updatedUser.icNumber ?? existing.ic_number,
         home_address: updatedUser.homeAddress ?? existing.home_address,
         emergency_phone: updatedUser.emergencyPhone ?? existing.emergency_phone,
+        typhoid_certificate_url: updatedUser.typhoidCertificateUrl ?? existing.typhoid_certificate_url,
+        typhoid_expiry_date: updatedUser.typhoidExpiryDate ?? existing.typhoid_expiry_date,
         department: updatedUser.department ?? existing.department,
         employee_id: updatedUser.employeeId ?? existing.employee_id
       };
@@ -85,6 +90,8 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
     const icNumber = updatedUser.icNumber ?? existing.ic_number;
     const homeAddress = updatedUser.homeAddress ?? existing.home_address;
     const emergencyPhone = updatedUser.emergencyPhone ?? existing.emergency_phone;
+    const typhoidCertificateUrl = updatedUser.typhoidCertificateUrl ?? existing.typhoid_certificate_url;
+    const typhoidExpiryDate = updatedUser.typhoidExpiryDate ?? existing.typhoid_expiry_date;
     const department = updatedUser.department ?? existing.department;
     const employeeId = updatedUser.employeeId ?? existing.employee_id;
 
@@ -96,6 +103,8 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
         ic_number = ${icNumber},
         home_address = ${homeAddress},
         emergency_phone = ${emergencyPhone},
+        typhoid_certificate_url = ${typhoidCertificateUrl},
+        typhoid_expiry_date = ${typhoidExpiryDate},
         department = ${department},
         employee_id = ${employeeId}
       WHERE id = ${updatedUser.id}
@@ -118,7 +127,7 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
 
 export const deleteUser = async (id: string): Promise<void> => {
   if (isOffline) {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const users = safeJSONParse(localStorage.getItem('users'), []);
     const filtered = users.filter((u: any) => u.id !== id);
     localStorage.setItem('users', JSON.stringify(filtered));
     return;
@@ -129,7 +138,7 @@ export const deleteUser = async (id: string): Promise<void> => {
 export const login = async (username: string, password: string): Promise<User> => {
   try {
     if (isOffline) {
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const users = safeJSONParse(localStorage.getItem('users'), []);
       const user = users.find((u: any) => u.username === username && u.password === password);
       if (user) return mapUser(user);
       
@@ -137,7 +146,7 @@ export const login = async (username: string, password: string): Promise<User> =
       if (users.length === 0 && username === 'admin' && password === 'admin') {
          const admin = await register('admin', 'admin', 'System Admin', 'Management');
          // Hack: Force role to admin for the first user
-         const allUsers = JSON.parse(localStorage.getItem('users') || '[]');
+         const allUsers = safeJSONParse(localStorage.getItem('users'), []);
          allUsers[0].role = 'ADMIN';
          localStorage.setItem('users', JSON.stringify(allUsers));
          return { ...admin, role: 'ADMIN' };
@@ -177,7 +186,7 @@ export const register = async (username: string, password: string, name: string,
     };
 
     if (isOffline) {
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const users = safeJSONParse(localStorage.getItem('users'), []);
       if (users.find((u: any) => u.username === username)) {
         throw new Error('Username already taken');
       }
@@ -206,7 +215,7 @@ export const register = async (username: string, password: string, name: string,
 
 export const getSession = (): User | null => {
   const saved = localStorage.getItem(SESSION_KEY);
-  return saved ? JSON.parse(saved) : null;
+  return safeJSONParse(saved, null);
 };
 
 export const setSession = (user: User) => {

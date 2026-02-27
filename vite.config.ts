@@ -10,11 +10,10 @@ export default defineConfig(({ mode }) => {
     define: {
       // Safely expose specific environment variables to the browser
       // Using JSON.stringify ensures values are embedded as strings
+      // If the variable is missing, we default to empty string "" to avoid "undefined" string injection
       'process.env.API_KEY': JSON.stringify(env.API_KEY || ""),
       'process.env.NETLIFY_DATABASE_URL': JSON.stringify(env.NETLIFY_DATABASE_URL || env.DATABASE_URL || ""),
       'process.env.DATABASE_URL': JSON.stringify(env.DATABASE_URL || ""),
-      // Polyfill process.env to empty object to prevent "process is not defined" crashes
-      'process.env': {}
     }
   };
 });

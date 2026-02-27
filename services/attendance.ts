@@ -1,5 +1,6 @@
 import { sql, isOffline } from './db';
 import { AttendanceRecord } from '../types';
+import { safeJSONParse } from '../src/utils/json';
 
 // Map DB row to AttendanceRecord
 const mapRecord = (row: any): AttendanceRecord => ({
@@ -20,7 +21,7 @@ const mapRecord = (row: any): AttendanceRecord => ({
 export const getAttendanceRecords = async (userId?: string): Promise<AttendanceRecord[]> => {
   try {
     if (isOffline) {
-      const raw = JSON.parse(localStorage.getItem('attendance_records') || '[]');
+      const raw = safeJSONParse(localStorage.getItem('attendance_records'), []);
       let records = raw.map(mapRecord);
       
       if (userId) {
@@ -46,7 +47,7 @@ export const getAttendanceRecords = async (userId?: string): Promise<AttendanceR
 export const createAttendanceRecord = async (record: AttendanceRecord): Promise<void> => {
   try {
     if (isOffline) {
-      const records = JSON.parse(localStorage.getItem('attendance_records') || '[]');
+      const records = safeJSONParse(localStorage.getItem('attendance_records'), []);
       // Store in snake_case to match DB format for consistency in mapRecord
       const dbRow = {
         id: record.id,

@@ -12,6 +12,8 @@ export interface User {
   icNumber?: string;
   homeAddress?: string;
   emergencyPhone?: string;
+  typhoidCertificateUrl?: string;
+  typhoidExpiryDate?: string;
 }
 
 export interface LocationData {
@@ -45,4 +47,13 @@ export enum AppView {
   PROFILE = 'PROFILE',
   SETTINGS = 'SETTINGS',
   CALENDAR = 'CALENDAR'
+}
+
+export interface MusicTrack {
+  id: string;
+  title: string;
+  artist: string;
+  url: string; // Base64 data URL
+  lyrics: string;
+  createdAt: number;
 }

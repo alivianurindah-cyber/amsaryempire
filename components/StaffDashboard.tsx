@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, LogOut, User as UserIcon, Settings, Calendar, ChefHat, Save, AlertCircle, Phone, MapPin, HeartPulse, Bell, Shield, Moon, ChevronRight, CheckCircle } from 'lucide-react';
+import { Home, LogOut, User as UserIcon, Settings, Calendar, ChefHat, AlertCircle, Phone, MapPin, HeartPulse, Bell, Shield, ChevronRight, CheckCircle, Plus } from 'lucide-react';
 import { AppView, AttendanceRecord, LocationData, User } from '../types';
 import { CameraCapture } from './CameraCapture';
 import { AttendanceList } from './AttendanceList';
@@ -30,7 +30,9 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
     phone: user.phone || '',
     icNumber: user.icNumber || '',
     homeAddress: user.homeAddress || '',
-    emergencyPhone: user.emergencyPhone || ''
+    emergencyPhone: user.emergencyPhone || '',
+    typhoidCertificateUrl: user.typhoidCertificateUrl || '',
+    typhoidExpiryDate: user.typhoidExpiryDate || ''
   });
 
   // Check if all required fields are present (Employee ID is excluded as it is admin-managed)
@@ -56,6 +58,17 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
   const hasClockedInToday = todaysRecords.some(r => r.type === 'CLOCK_IN');
   const hasClockedOutToday = todaysRecords.some(r => r.type === 'CLOCK_OUT');
   const isShiftComplete = hasClockedInToday && hasClockedOutToday;
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileForm(prev => ({ ...prev, typhoidCertificateUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Handle Profile Update
   const handleProfileSubmit = async (e: React.FormEvent) => {
@@ -93,7 +106,9 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
             phone: profileForm.phone,
             icNumber: profileForm.icNumber,
             homeAddress: profileForm.homeAddress,
-            emergencyPhone: profileForm.emergencyPhone
+            emergencyPhone: profileForm.emergencyPhone,
+            typhoidCertificateUrl: profileForm.typhoidCertificateUrl,
+            typhoidExpiryDate: profileForm.typhoidExpiryDate
         });
         
         onUserUpdate(updatedUser);
@@ -473,6 +488,56 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                                 <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                             </div>
                         </div>
+
+                        {/* Typhoid Vaccination Section */}
+                        <div className="pt-4 border-t border-slate-100">
+                            <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                <Shield className="w-4 h-4 text-brand-500" />
+                                Typhoid Vaccination
+                            </h3>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Expiry Date</label>
+                                    <input 
+                                        type="date"
+                                        value={profileForm.typhoidExpiryDate}
+                                        onChange={(e) => setProfileForm({...profileForm, typhoidExpiryDate: e.target.value})}
+                                        className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-900 text-base px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Certificate Image</label>
+                                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors relative">
+                                        <input 
+                                            type="file" 
+                                            accept="image/*"
+                                            onChange={handleFileUpload}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        />
+                                        {profileForm.typhoidCertificateUrl ? (
+                                            <div className="relative">
+                                                <img 
+                                                    src={profileForm.typhoidCertificateUrl} 
+                                                    alt="Typhoid Certificate" 
+                                                    className="max-h-48 mx-auto rounded-lg shadow-sm"
+                                                />
+                                                <div className="mt-2 text-xs text-brand-600 font-medium">Click to replace</div>
+                                            </div>
+                                        ) : (
+                                            <div className="py-4">
+                                                <div className="w-10 h-10 bg-brand-50 text-brand-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                                                    <Plus className="w-5 h-5" />
+                                                </div>
+                                                <p className="text-sm font-medium text-slate-600">Upload Certificate</p>
+                                                <p className="text-xs text-slate-400 mt-1">PNG, JPG up to 5MB</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <Button 
@@ -526,13 +591,27 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                         <div className="flex items-center gap-3">
                            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Bell className="w-5 h-5"/></div>
                            <div>
-                              <p className="text-sm font-semibold text-slate-900">Notifications</p>
-                              <p className="text-xs text-slate-500">Receive alerts</p>
+                              <p className="text-sm font-semibold text-slate-900">Shift Reminders</p>
+                              <p className="text-xs text-slate-500">Get notified before shift starts</p>
                            </div>
                         </div>
-                        <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200">
-                           <span className="translate-x-1 inline-block h-4 w-4 transform rounded-full bg-white transition" />
+                        <label className="relative inline-flex items-center cursor-pointer">
+                           <input type="checkbox" className="sr-only peer" defaultChecked />
+                           <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+                        </label>
+                     </div>
+                     <div className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                           <div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Bell className="w-5 h-5"/></div>
+                           <div>
+                              <p className="text-sm font-semibold text-slate-900">Announcements</p>
+                              <p className="text-xs text-slate-500">Important company updates</p>
+                           </div>
                         </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                           <input type="checkbox" className="sr-only peer" defaultChecked />
+                           <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+                        </label>
                      </div>
                   </div>
                </div>

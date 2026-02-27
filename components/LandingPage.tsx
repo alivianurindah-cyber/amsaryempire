@@ -1,14 +1,51 @@
-import React from 'react';
-import { ChefHat, ArrowRight, Star, Clock, ShieldCheck, Users } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChefHat, ArrowRight, Star, Clock, ShieldCheck, Users, Music, Volume2, VolumeX } from 'lucide-react';
 import { Button } from './Button';
+import { getMusicTracks } from '../services/music';
+import { MusicTrack } from '../types';
 
 interface LandingPageProps {
   onEnter: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
+  const [tracks, setTracks] = useState<MusicTrack[]>([]);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Start muted for autoplay compliance
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    const loadTracks = async () => {
+      const t = await getMusicTracks();
+      if (t.length > 0) {
+        setTracks(t);
+        setIsPlaying(true);
+      }
+    };
+    loadTracks();
+  }, []);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.log("Autoplay prevented:", error);
+                setIsPlaying(false);
+            });
+        }
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [isPlaying, currentTrackIndex]);
+
+  const currentTrack = tracks[currentTrackIndex];
+
   return (
-    <div className="min-h-[100dvh] bg-white font-sans text-slate-900 flex flex-col">
+    <div className="min-h-[100dvh] bg-white font-sans text-slate-900 flex flex-col relative overflow-hidden">
       {/* Navigation */}
       <nav className="max-w-7xl mx-auto w-full px-6 py-6 flex justify-between items-center">
         <div className="flex items-center gap-2">
@@ -77,6 +114,51 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
       <footer className="py-8 text-center text-slate-400 text-sm border-t border-slate-100">
         <p>&copy; {new Date().getFullYear()} Chef Ammar Group. All rights reserved.</p>
       </footer>
+
+      {/* Music Player Overlay */}
+      {currentTrack && (
+        <div className="fixed bottom-6 left-6 z-50 max-w-xs w-full bg-white/90 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl p-4 animate-in slide-in-from-bottom-10 duration-700 hidden sm:block">
+            <div className="flex items-center gap-4 mb-3">
+                <div className="w-12 h-12 bg-brand-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/30 animate-pulse">
+                    <Music className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-slate-900 truncate">{currentTrack.title}</h3>
+                    <p className="text-xs text-slate-500 truncate">{currentTrack.artist}</p>
+                </div>
+                <button 
+                    onClick={() => {
+                        setIsMuted(!isMuted);
+                        if (!isPlaying) setIsPlaying(true);
+                    }}
+                    className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
+                    title={isMuted ? "Unmute" : "Mute"}
+                >
+                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                </button>
+            </div>
+            
+            {/* Lyrics Scroll */}
+            <div className="h-32 overflow-y-auto text-xs text-slate-600 space-y-2 pr-2 custom-scrollbar bg-slate-50/50 rounded-lg p-3 border border-slate-100">
+                {currentTrack.lyrics ? (
+                    <p className="whitespace-pre-line leading-relaxed font-medium">{currentTrack.lyrics}</p>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
+                        <Music className="w-4 h-4" />
+                        <span className="italic">Instrumental</span>
+                    </div>
+                )}
+            </div>
+
+            <audio 
+                ref={audioRef}
+                src={currentTrack.url}
+                muted={isMuted}
+                onEnded={() => setCurrentTrackIndex((prev) => (prev + 1) % tracks.length)}
+                className="hidden"
+            />
+        </div>
+      )}
     </div>
   );
 };

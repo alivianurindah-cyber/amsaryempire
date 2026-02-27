@@ -1,4 +1,5 @@
 import { sql, isOffline } from './db';
+import { safeJSONParse } from '../src/utils/json';
 
 export const initDB = async () => {
   try {
@@ -7,7 +8,7 @@ export const initDB = async () => {
     if (isOffline) {
       console.log("System in Offline Mode: Checking LocalStorage schema...");
       
-      let users = JSON.parse(localStorage.getItem('users') || '[]');
+      let users = safeJSONParse(localStorage.getItem('users'), []);
       
       // Initialize Users Table in LocalStorage
       if (!localStorage.getItem('users')) {
@@ -20,6 +21,12 @@ export const initDB = async () => {
       if (!localStorage.getItem('attendance_records')) {
         console.log("Creating local 'attendance_records' table");
         localStorage.setItem('attendance_records', JSON.stringify([]));
+      }
+
+      // Initialize Music Tracks Table in LocalStorage
+      if (!localStorage.getItem('music_tracks')) {
+        console.log("Creating local 'music_tracks' table");
+        localStorage.setItem('music_tracks', JSON.stringify([]));
       }
 
       // Check/Create Default Admin for Offline Mode
@@ -81,6 +88,18 @@ export const initDB = async () => {
         ai_verification TEXT,
         synced BOOLEAN DEFAULT true,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+
+    // SQL Mode: Create Music Tracks Table
+    await sql`
+      CREATE TABLE IF NOT EXISTS music_tracks (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        artist TEXT NOT NULL,
+        url TEXT NOT NULL,
+        lyrics TEXT,
+        created_at BIGINT NOT NULL
       );
     `;
     
