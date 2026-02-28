@@ -1,4 +1,4 @@
-import { sql, isTrulyOnline } from './db';
+import { sql, isOffline } from './db';
 import { AttendanceRecord } from '../types';
 import { safeJSONParse } from '../src/utils/json';
 
@@ -20,18 +20,20 @@ const mapRecord = (row: any): AttendanceRecord => ({
 });
 
 export const getAttendanceRecords = async (userId?: string): Promise<AttendanceRecord[]> => {
-  try {
-    if (!isTrulyOnline()) {
-      const raw = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
-      let records = raw.map(mapRecord);
-      
-      if (userId) {
-        records = records.filter((r: AttendanceRecord) => r.userId === userId);
-      }
-      // Sort desc
-      return records.sort((a: AttendanceRecord, b: AttendanceRecord) => b.timestamp - a.timestamp);
+  const fetchLocal = () => {
+    const raw = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
+    let records = raw.map(mapRecord);
+    if (userId) {
+      records = records.filter((r: AttendanceRecord) => r.userId === userId);
     }
+    return records.sort((a: AttendanceRecord, b: AttendanceRecord) => b.timestamp - a.timestamp);
+  };
 
+  if (isOffline) {
+    return fetchLocal();
+  }
+
+  try {
     let rows;
     if (userId) {
       rows = await sql`SELECT * FROM attendance_records WHERE user_id = ${userId} ORDER BY timestamp DESC`;
@@ -41,12 +43,7 @@ export const getAttendanceRecords = async (userId?: string): Promise<AttendanceR
     return rows.map(mapRecord);
   } catch (error) {
     console.error("Failed to fetch attendance records from SQL, falling back to local:", error);
-    const raw = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
-    let records = raw.map(mapRecord);
-    if (userId) {
-      records = records.filter((r: AttendanceRecord) => r.userId === userId);
-    }
-    return records.sort((a: AttendanceRecord, b: AttendanceRecord) => b.timestamp - a.timestamp);
+    return fetchLocal();
   }
 };
 
@@ -72,7 +69,7 @@ export const createAttendanceRecord = async (record: AttendanceRecord): Promise<
     localStorage.setItem('attendance_records', JSON.stringify(records));
   };
 
-  if (!isTrulyOnline()) {
+  if (isOffline) {
     saveToLocal();
     return;
   }
@@ -107,7 +104,7 @@ export const updateAttendanceRecord = async (id: string, updates: Partial<Attend
     }
   };
 
-  if (!isTrulyOnline()) {
+  if (isOffline) {
     updateLocal();
     return;
   }

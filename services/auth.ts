@@ -1,5 +1,5 @@
 import { User } from '../types';
-import { sql, isTrulyOnline } from './db';
+import { sql, isOffline } from './db';
 import { safeJSONParse } from '../src/utils/json';
 
 const SESSION_KEY = 'geo_user_session';
@@ -36,18 +36,21 @@ const mapUser = (row: any): User => ({
 });
 
 export const getUsers = async (): Promise<User[]> => {
-  try {
-    if (!isTrulyOnline()) {
-      const users = safeJSONParse(localStorage.getItem('users'), []);
-      return users.map(mapUser);
-    }
+  const fetchLocal = () => {
+    const users = safeJSONParse(localStorage.getItem('users'), []);
+    return users.map(mapUser);
+  };
 
+  if (isOffline) {
+    return fetchLocal();
+  }
+
+  try {
     const rows = await sql`SELECT * FROM users`;
     return rows.map(mapUser);
   } catch (error) {
     console.error("Error fetching users from SQL, falling back to local:", error);
-    const users = safeJSONParse(localStorage.getItem('users'), []);
-    return users.map(mapUser);
+    return fetchLocal();
   }
 };
 
@@ -93,7 +96,7 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
     return mappedUser;
   };
 
-  if (!isTrulyOnline()) {
+  if (isOffline) {
     return updateLocal();
   }
 
@@ -161,7 +164,7 @@ export const deleteUser = async (id: string): Promise<void> => {
     localStorage.setItem('users', JSON.stringify(filtered));
   };
 
-  if (!isTrulyOnline()) {
+  if (isOffline) {
     deleteLocal();
     return;
   }
@@ -178,32 +181,25 @@ export const login = async (username: string, password: string): Promise<User> =
     const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
     const user = users.find((u: any) => u.username === username && u.password === password);
     if (user) return mapUser(user);
-    
-    // Fallback for demo: if no users exist at all, allow a default admin login
-    if (users.length === 0 && username === 'admin' && password === 'admin') {
-       // This is a bit complex as register is async, but for local it's fine
-       return null; 
-    }
-    
     return null;
   };
 
-  try {
-    if (!isTrulyOnline()) {
-      const u = loginLocal();
-      if (u) return u;
-      
-      // Special case for default admin
-      if (username === 'admin' && password === 'admin') {
-          const admin = await register('admin', 'admin', 'System Admin', 'Management');
-          const allUsers = safeJSONParse<any[]>(localStorage.getItem('users'), []);
-          allUsers[allUsers.length-1].role = 'ADMIN';
-          localStorage.setItem('users', JSON.stringify(allUsers));
-          return { ...admin, role: 'ADMIN' };
-      }
-      throw new Error('Invalid credentials');
+  if (isOffline) {
+    const u = loginLocal();
+    if (u) return u;
+    
+    // Special case for default admin
+    if (username === 'admin' && password === 'admin') {
+        const admin = await register('admin', 'admin', 'System Admin', 'Management');
+        const allUsers = safeJSONParse<any[]>(localStorage.getItem('users'), []);
+        allUsers[allUsers.length-1].role = 'ADMIN';
+        localStorage.setItem('users', JSON.stringify(allUsers));
+        return { ...admin, role: 'ADMIN' };
     }
+    throw new Error('Invalid credentials');
+  }
 
+  try {
     const [user] = await sql`SELECT * FROM users WHERE username = ${username} AND password = ${password}`;
     
     if (user) {
@@ -211,8 +207,7 @@ export const login = async (username: string, password: string): Promise<User> =
     }
     throw new Error('Invalid credentials');
   } catch (error: any) {
-    console.error("Login error:", error);
-    // If SQL fails, try local as fallback
+    console.error("Login error in SQL, trying local fallback:", error);
     const u = loginLocal();
     if (u) return u;
     throw new Error(error.message || 'Authentication failed');
@@ -245,11 +240,11 @@ export const register = async (username: string, password: string, name: string,
     return mapUser(newUser);
   };
 
-  try {
-    if (!isTrulyOnline()) {
-      return registerLocal();
-    }
+  if (isOffline) {
+    return registerLocal();
+  }
 
+  try {
     const [existing] = await sql`SELECT id FROM users WHERE username = ${username}`;
     if (existing) {
       throw new Error('Username already taken');
@@ -277,7 +272,7 @@ export const register = async (username: string, password: string, name: string,
     try {
         return registerLocal();
     } catch (e) {
-        throw error; // Throw original SQL error if local also fails (e.g. username taken)
+        throw error;
     }
   }
 };

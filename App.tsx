@@ -91,10 +91,17 @@ function App() {
                         <p className="text-sm font-medium leading-relaxed">{dbError}</p>
                     </div>
                     
-                    <div className="space-y-3">
+                    <div className="space-y-4">
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correct Format Example:</p>
+                            <code className="text-[10px] block break-all bg-white p-2 border border-slate-100 rounded text-slate-600">
+                                postgresql://neondb_owner:npg_AxP0ngi3OpHG@ep-wild-recipe-aecgevtf-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require
+                            </code>
+                        </div>
+
                         <p className="text-xs text-slate-500 leading-relaxed">
-                            The system detected an invalid <code className="bg-slate-100 px-1 rounded">DATABASE_URL</code>. 
-                            Please update your environment variables with the correct Neon connection string.
+                            Please update your <code className="bg-slate-100 px-1 rounded">VITE_DATABASE_URL</code> environment variable. 
+                            Ensure there are no extra spaces or quotes around the URL.
                         </p>
                         
                         <div className="pt-2 flex flex-col gap-2">

@@ -19,6 +19,10 @@ const getDbUrl = () => {
   const url = clean(netlifyUrl) || clean(stdUrl) || clean(viteUrl);
   
   if (url) {
+      if (!url.startsWith('postgres') && !url.startsWith('postgresql')) {
+          console.error("Invalid DATABASE_URL format. It must start with postgresql://");
+          return 'INVALID_FORMAT';
+      }
       const masked = url.replace(/:([^@]+)@/, ':****@');
       console.log(`Database URL detected: ${masked}`);
   }
@@ -28,11 +32,16 @@ const getDbUrl = () => {
 };
 
 const dbUrl = getDbUrl();
-export const isOffline = !dbUrl;
+export const isOffline = !dbUrl || dbUrl === 'INVALID_FORMAT';
 
 export type DbStatus = 'OFFLINE' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 let currentStatus: DbStatus = isOffline ? 'OFFLINE' : 'CONNECTING';
 let connectionError: string | null = null;
+
+if (dbUrl === 'INVALID_FORMAT') {
+    connectionError = "Invalid DATABASE_URL format. Please ensure it starts with 'postgresql://' and includes your username and password.";
+    currentStatus = 'ERROR';
+}
 
 export const getDbStatus = () => ({ status: currentStatus, error: connectionError });
 
@@ -40,9 +49,9 @@ export const isTrulyOnline = () => currentStatus === 'CONNECTED';
 
 let sqlInstance: any | undefined;
 
-const getSqlInstance = async () => {
+export const getSqlInstance = async () => {
   if (sqlInstance) return sqlInstance;
-  if (!dbUrl) {
+  if (!dbUrl || dbUrl === 'INVALID_FORMAT') {
     currentStatus = 'OFFLINE';
     return null;
   }
@@ -50,7 +59,6 @@ const getSqlInstance = async () => {
   try {
     currentStatus = 'CONNECTING';
     console.log("Connecting to Database...");
-    // Dynamic import to avoid top-level side effects (like fetch polyfill issues)
     const { neon } = await import('@neondatabase/serverless');
     sqlInstance = neon(dbUrl);
     
@@ -63,13 +71,18 @@ const getSqlInstance = async () => {
   } catch (error: any) {
     currentStatus = 'ERROR';
     console.error("Failed to initialize Neon client:", error);
-    if (error.message?.includes('authentication failed')) {
-        connectionError = "Invalid DATABASE_URL credentials. Please check your Neon password.";
-        console.error(connectionError);
+    
+    const msg = error.message || "";
+    if (msg.includes('authentication failed')) {
+        connectionError = "Database authentication failed. The password provided in your DATABASE_URL is incorrect for user 'neondb_owner'.";
+    } else if (msg.includes('DNS name not found') || msg.includes('ENOTFOUND')) {
+        connectionError = "Database host not found. Please check the hostname in your DATABASE_URL.";
     } else {
-        connectionError = error.message || "Failed to connect to database.";
+        connectionError = msg || "Failed to connect to database.";
     }
-    sqlInstance = undefined; // Reset so we can try again if URL changes
+    
+    console.error(connectionError);
+    sqlInstance = undefined; 
     return null;
   }
 };

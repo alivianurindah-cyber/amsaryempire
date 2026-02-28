@@ -1,4 +1,4 @@
-import { sql, isTrulyOnline } from './db';
+import { sql, isOffline, isTrulyOnline } from './db';
 import { safeJSONParse } from '../src/utils/json';
 import { getAllTracksFromDB } from './indexedDB';
 
@@ -6,8 +6,8 @@ export const initDB = async () => {
   try {
     console.log("Initializing database schema...");
 
-    if (!isTrulyOnline()) {
-      console.log("System in Offline/Error Mode: Checking LocalStorage schema...");
+    if (isOffline) {
+      console.log("System in Offline Mode: Checking LocalStorage schema...");
       
       let users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
       
