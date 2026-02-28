@@ -3,8 +3,10 @@
 // 3. Handle empty/undefined strings safely
 const getDbUrl = () => {
   // Check process.env (Vite replaces these with strings)
+  // Also check import.meta.env for Vite-native variables
   const netlifyUrl = process.env.NETLIFY_DATABASE_URL;
   const stdUrl = process.env.DATABASE_URL;
+  const viteUrl = (import.meta as any).env?.VITE_DATABASE_URL;
 
   // Clean quotes that JSON.stringify might have added
   const clean = (url: string | undefined) => {
@@ -14,8 +16,13 @@ const getDbUrl = () => {
       return url.replace(/['"]/g, '').trim();
   };
 
-  const url = clean(netlifyUrl) || clean(stdUrl);
+  const url = clean(netlifyUrl) || clean(stdUrl) || clean(viteUrl);
   
+  if (url) {
+      const masked = url.replace(/:([^@]+)@/, ':****@');
+      console.log(`Database URL detected: ${masked}`);
+  }
+
   if (!url || url === 'undefined' || url === 'null') return null;
   return url;
 };
@@ -23,20 +30,44 @@ const getDbUrl = () => {
 const dbUrl = getDbUrl();
 export const isOffline = !dbUrl;
 
+export type DbStatus = 'OFFLINE' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
+let currentStatus: DbStatus = isOffline ? 'OFFLINE' : 'CONNECTING';
+let connectionError: string | null = null;
+
+export const getDbStatus = () => ({ status: currentStatus, error: connectionError });
+
 let sqlInstance: any | undefined;
 
 const getSqlInstance = async () => {
   if (sqlInstance) return sqlInstance;
-  if (!dbUrl) return null;
+  if (!dbUrl) {
+    currentStatus = 'OFFLINE';
+    return null;
+  }
 
   try {
+    currentStatus = 'CONNECTING';
     console.log("Connecting to Database...");
     // Dynamic import to avoid top-level side effects (like fetch polyfill issues)
     const { neon } = await import('@neondatabase/serverless');
     sqlInstance = neon(dbUrl);
+    
+    // Test the connection immediately to catch auth errors early
+    await sqlInstance`SELECT 1`;
+    
+    currentStatus = 'CONNECTED';
+    connectionError = null;
     return sqlInstance;
-  } catch (error) {
+  } catch (error: any) {
+    currentStatus = 'ERROR';
     console.error("Failed to initialize Neon client:", error);
+    if (error.message?.includes('authentication failed')) {
+        connectionError = "Invalid DATABASE_URL credentials. Please check your Neon password.";
+        console.error(connectionError);
+    } else {
+        connectionError = error.message || "Failed to connect to database.";
+    }
+    sqlInstance = undefined; // Reset so we can try again if URL changes
     return null;
   }
 };

@@ -77,7 +77,7 @@ export const createAttendanceRecord = async (record: AttendanceRecord): Promise<
       ) VALUES (
         ${record.id}, ${record.userId}, ${record.userName}, ${record.userRole}, ${record.type}, 
         ${record.timestamp}, ${record.dateStr}, ${record.timeStr}, ${JSON.stringify(record.location)}, 
-        ${record.photoUrl}, ${record.aiVerification}, ${true}, ${record.otStatus || null}
+        ${record.photoUrl ?? null}, ${record.aiVerification ?? null}, ${true}, ${record.otStatus ?? null}
       )
     `;
   } catch (error) {

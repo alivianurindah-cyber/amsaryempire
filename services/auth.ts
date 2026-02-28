@@ -116,21 +116,21 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
     const [updatedRow] = await sql`
       UPDATE users 
       SET 
-        name = ${name},
-        phone = ${phone},
-        ic_number = ${icNumber},
-        home_address = ${homeAddress},
-        emergency_phone = ${emergencyPhone},
-        typhoid_certificate_url = ${typhoidCertificateUrl},
-        typhoid_expiry_date = ${typhoidExpiryDate},
-        typhoid_verification_status = ${typhoidVerificationStatus},
-        typhoid_verification_details = ${typhoidVerificationDetails},
-        department = ${department},
-        employee_id = ${employeeId},
-        shift_start = ${shiftStart},
-        shift_end = ${shiftEnd},
-        base_salary = ${baseSalary},
-        salary_type = ${salaryType}
+        name = ${name ?? null},
+        phone = ${phone ?? null},
+        ic_number = ${icNumber ?? null},
+        home_address = ${homeAddress ?? null},
+        emergency_phone = ${emergencyPhone ?? null},
+        typhoid_certificate_url = ${typhoidCertificateUrl ?? null},
+        typhoid_expiry_date = ${typhoidExpiryDate ?? null},
+        typhoid_verification_status = ${typhoidVerificationStatus ?? null},
+        typhoid_verification_details = ${typhoidVerificationDetails ?? null},
+        department = ${department ?? null},
+        employee_id = ${employeeId ?? null},
+        shift_start = ${shiftStart ?? null},
+        shift_end = ${shiftEnd ?? null},
+        base_salary = ${baseSalary ?? null},
+        salary_type = ${salaryType ?? null}
       WHERE id = ${updatedUser.id}
       RETURNING *
     `;

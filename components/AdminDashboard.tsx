@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Music, Upload, DollarSign, FileText, Calendar } from 'lucide-react';
+import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Music, Upload, DollarSign, FileText, Calendar, AlertCircle } from 'lucide-react';
 import { AttendanceRecord, User, MusicTrack } from '../types';
 import { Button } from './Button';
 import { getUsers, updateUser, deleteUser } from '../services/auth';
 import { getAttendanceRecords, updateAttendanceRecord } from '../services/attendance';
 import { getMusicTracks, addMusicTrack, deleteMusicTrack } from '../services/music';
 import { generateLyrics } from '../services/geminiService';
+import { migrateFromLocalToSQL } from '../services/migrations';
+import { isOffline } from '../services/db';
 
 interface AdminDashboardProps {
   user: User;
@@ -14,11 +16,13 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUserUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'MUSIC' | 'PAYROLL'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'MUSIC' | 'PAYROLL' | 'SYSTEM'>('LOGS');
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
   
   // Payroll State
   const [dateFrom, setDateFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
@@ -37,12 +41,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   useEffect(() => {
     // Load Logs
     const loadData = async () => {
-        const recs = await getAttendanceRecords();
-        setRecords(recs);
-        const usrs = await getUsers();
-        setUsers(usrs);
-        const tracks = await getMusicTracks();
-        setMusicTracks(tracks);
+        try {
+            setDbError(null);
+            const recs = await getAttendanceRecords();
+            setRecords(recs);
+            const usrs = await getUsers();
+            setUsers(usrs);
+            const tracks = await getMusicTracks();
+            setMusicTracks(tracks);
+        } catch (error: any) {
+            console.error("Failed to load data:", error);
+            if (error.message?.includes('authentication failed')) {
+                setDbError("Database authentication failed. Please check your DATABASE_URL password.");
+            } else {
+                setDbError("Failed to connect to database. Check your connection.");
+            }
+        }
     };
     loadData();
   }, [activeTab]);
@@ -79,7 +93,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
             avatar: editForm.avatar,
             shiftStart: editForm.shiftStart,
             shiftEnd: editForm.shiftEnd,
-            baseSalary: editForm.baseSalary
+            baseSalary: editForm.baseSalary,
+            salaryType: editForm.salaryType
         });
         
         // If the admin is editing their own profile, update global state
@@ -186,6 +201,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
       }
   };
 
+  const handleMigrate = async () => {
+      if (!window.confirm("Are you sure you want to migrate data from LocalStorage to the Neon Database? This will only copy records that don't already exist.")) {
+          return;
+      }
+      setIsMigrating(true);
+      try {
+          const success = await migrateFromLocalToSQL();
+          if (success) {
+              alert("Migration completed successfully!");
+              // Reload data
+              const recs = await getAttendanceRecords();
+              setRecords(recs);
+              const usrs = await getUsers();
+              setUsers(usrs);
+              const tracks = await getMusicTracks();
+              setMusicTracks(tracks);
+          } else {
+              alert("Migration failed or you are currently in offline mode.");
+          }
+      } catch (error) {
+          console.error("Migration error:", error);
+          alert("An error occurred during migration.");
+      } finally {
+          setIsMigrating(false);
+      }
+  };
+
   const filteredRecords = records.filter(record => {
     const matchesSearch = record.userName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           record.userRole?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -241,6 +283,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                 >
                     Payroll
                 </button>
+                <button 
+                    onClick={() => setActiveTab('SYSTEM')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'SYSTEM' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    System
+                </button>
             </div>
 
             <div className="hidden md:block text-right">
@@ -264,6 +312,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {dbError && (
+            <div className="mb-8 bg-red-50 border border-red-200 p-4 rounded-xl flex items-center gap-3 text-red-800 animate-in fade-in slide-in-from-top-2">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                <div className="flex-1">
+                    <p className="font-bold">Database Connection Error</p>
+                    <p className="text-sm">{dbError}</p>
+                </div>
+                <Button size="sm" variant="secondary" onClick={() => window.location.reload()} className="text-red-600 hover:bg-red-100 border-red-200">
+                    Retry
+                </Button>
+            </div>
+        )}
         
         {/* Stats Row (Only on Logs view) */}
         {activeTab === 'LOGS' && (
@@ -922,6 +982,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                 })}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {activeTab === 'SYSTEM' && (
+            <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-900">System Settings</h2>
+                        <p className="text-slate-500">Manage database and system integration</p>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="p-6 border-b border-slate-100">
+                        <h3 className="text-lg font-semibold text-slate-900 mb-1">Database Migration</h3>
+                        <p className="text-sm text-slate-500">
+                            Migrate your data from the old offline database (LocalStorage) to the new system integration (Neon PostgreSQL).
+                        </p>
+                    </div>
+                    <div className="p-6 bg-slate-50">
+                        <div className="flex items-start gap-4">
+                            <div className="flex-1">
+                                <div className="bg-blue-50 text-blue-800 text-sm p-4 rounded-lg mb-4 border border-blue-100">
+                                    <strong>Note:</strong> This process will copy users, attendance records, and music tracks. It will skip any records that already exist in the new database to prevent duplicates.
+                                    <br/><br/>
+                                    Current Mode: <strong>{isOffline ? 'Offline (LocalStorage)' : 'Online (Neon PostgreSQL)'}</strong>
+                                </div>
+                                <Button 
+                                    onClick={handleMigrate} 
+                                    disabled={isMigrating || isOffline}
+                                    className="w-full md:w-auto"
+                                >
+                                    {isMigrating ? 'Migrating...' : 'Start Migration to SQL'}
+                                </Button>
+                                {isOffline && (
+                                    <p className="text-xs text-red-500 mt-2">
+                                        You must connect to the Neon database first (by setting DATABASE_URL) before you can migrate data.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
