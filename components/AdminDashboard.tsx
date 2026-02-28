@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Music, Upload, DollarSign, FileText, Calendar, AlertCircle } from 'lucide-react';
+import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Music, Upload, DollarSign, FileText, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
 import { AttendanceRecord, User, MusicTrack } from '../types';
 import { Button } from './Button';
 import { getUsers, updateUser, deleteUser } from '../services/auth';
@@ -7,7 +7,7 @@ import { getAttendanceRecords, updateAttendanceRecord } from '../services/attend
 import { getMusicTracks, addMusicTrack, deleteMusicTrack } from '../services/music';
 import { generateLyrics } from '../services/geminiService';
 import { migrateFromLocalToSQL } from '../services/migrations';
-import { isTrulyOnline } from '../services/db';
+import { isTrulyOnline, retryConnection } from '../services/db';
 
 interface AdminDashboardProps {
   user: User;
@@ -22,7 +22,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+
+  const handleRetryConnection = async () => {
+    setIsRetrying(true);
+    const status = await retryConnection();
+    if (status.status === 'ERROR') {
+        setDbError(status.error);
+    } else {
+        setDbError(null);
+        // Reload data if successful
+        const tracks = await getMusicTracks();
+        setMusicTracks(tracks);
+    }
+    setIsRetrying(false);
+  };
   
   // Payroll State
   const [dateFrom, setDateFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
@@ -127,8 +142,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             
-            if (file.size > 10 * 1024 * 1024) {
-                alert(`File ${file.name} is too large. Skipping. Limit is 10MB.`);
+            // 7MB is safer to stay under the 10MB serverless payload limit when base64 encoded
+            if (file.size > 7 * 1024 * 1024) {
+                alert(`File ${file.name} is too large. Limit is 7MB for cloud storage. Please try a smaller file or a lower bitrate MP3.`);
                 continue;
             }
 
@@ -149,14 +165,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             }
                         }
 
-                        // Generate lyrics in background or with timeout to not block upload
+                        // Generate lyrics with a shorter timeout for UI
                         let lyrics = "Lyrics processing...";
                         try {
-                            // We don't await here to allow the upload to proceed, 
-                            // but we need the lyrics for the initial save.
-                            // Let's try a quick generation, if it takes > 10s we skip for now.
                             const lyricsPromise = generateLyrics(base64Audio, title, artist);
-                            const timeoutPromise = new Promise<string>((resolve) => setTimeout(() => resolve("Lyrics will be available soon."), 10000));
+                            const timeoutPromise = new Promise<string>((resolve) => setTimeout(() => resolve("Lyrics will be available soon."), 8000));
                             lyrics = await Promise.race([lyricsPromise, timeoutPromise]);
                         } catch (e) {
                             console.warn("Lyrics generation failed", e);
@@ -173,10 +186,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                         };
 
                         await addMusicTrack(newTrack, file);
+                        
+                        // Refresh tracks after each successful upload
+                        const updatedTracks = await getMusicTracks();
+                        setMusicTracks(updatedTracks);
                         resolve();
-                    } catch (err) {
+                    } catch (err: any) {
                         console.error(`Failed to process ${file.name}`, err);
-                        alert(`Failed to upload ${file.name}. Please try a smaller file.`);
+                        alert(`Failed to upload ${file.name}: ${err.message || "Unknown error"}. Try a smaller file.`);
                         resolve(); 
                     }
                 };
@@ -773,11 +790,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                 </div>
 
                 {!isTrulyOnline() && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg flex items-center gap-3 text-red-800 text-sm">
-                        <div className="p-2 bg-red-100 rounded-full">
-                            <Music className="w-4 h-4" />
+                    <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-red-800 text-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-red-100 rounded-full">
+                                <Music className="w-4 h-4" />
+                            </div>
+                            <p>Music management is disabled in Offline Mode. Please connect to your database to manage tracks.</p>
                         </div>
-                        <p>Music management is disabled in Offline Mode. Please connect to your database to manage tracks.</p>
+                        <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            onClick={handleRetryConnection}
+                            disabled={isRetrying}
+                            className="shrink-0"
+                        >
+                            <RefreshCw className={`w-3 h-3 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />
+                            Retry Connection
+                        </Button>
                     </div>
                 )}
 

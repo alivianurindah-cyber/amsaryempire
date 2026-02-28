@@ -28,16 +28,20 @@ export const addMusicTrack = async (track: MusicTrack, _file?: File): Promise<Mu
       VALUES (${track.id}, ${track.title}, ${track.artist}, ${track.url}, ${track.lyrics ?? null}, ${track.createdAt})
     `;
     return track;
-  } catch (e) {
+  } catch (e: any) {
     console.error("Failed to save track to SQL:", e);
-    throw new Error("Cloud connection required to upload music. Please check your database settings.");
+    const msg = e.message || "";
+    if (msg.includes('too large') || msg.includes('payload') || msg.includes('exceeds')) {
+        throw new Error("The music file is too large for cloud storage. Please try a smaller file (under 7MB) or a lower quality MP3.");
+    }
+    throw new Error("Cloud connection required to upload music. Please check your database settings and internet connection.");
   }
 };
 
 export const deleteMusicTrack = async (id: string): Promise<void> => {
   try {
     await sql`DELETE FROM music_tracks WHERE id = ${id}`;
-  } catch (e) {
+  } catch (e: any) {
     console.error("Failed to delete track from SQL:", e);
     throw new Error("Cloud connection required to delete music. Please check your database settings.");
   }

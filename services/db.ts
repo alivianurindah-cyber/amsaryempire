@@ -47,6 +47,12 @@ export const getDbStatus = () => ({ status: currentStatus, error: connectionErro
 
 export const isTrulyOnline = () => currentStatus === 'CONNECTED';
 
+export const retryConnection = async () => {
+    sqlInstance = undefined;
+    await getSqlInstance();
+    return getDbStatus();
+};
+
 let sqlInstance: any | undefined;
 
 export const getSqlInstance = async () => {
