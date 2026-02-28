@@ -1,5 +1,5 @@
 import { User } from '../types';
-import { sql, isOffline } from './db';
+import { sql, isTrulyOnline } from './db';
 import { safeJSONParse } from '../src/utils/json';
 
 const SESSION_KEY = 'geo_user_session';
@@ -37,7 +37,7 @@ const mapUser = (row: any): User => ({
 
 export const getUsers = async (): Promise<User[]> => {
   try {
-    if (isOffline) {
+    if (!isTrulyOnline()) {
       const users = safeJSONParse(localStorage.getItem('users'), []);
       return users.map(mapUser);
     }
@@ -45,54 +45,59 @@ export const getUsers = async (): Promise<User[]> => {
     const rows = await sql`SELECT * FROM users`;
     return rows.map(mapUser);
   } catch (error) {
-    console.error("Error fetching users:", error);
-    return [];
+    console.error("Error fetching users from SQL, falling back to local:", error);
+    const users = safeJSONParse(localStorage.getItem('users'), []);
+    return users.map(mapUser);
   }
 };
 
 export const updateUser = async (updatedUser: Partial<User> & { id: string }): Promise<User> => {
-  try {
-    if (isOffline) {
-      const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
-      const index = users.findIndex((u: any) => u.id === updatedUser.id);
-      
-      if (index === -1) throw new Error("User not found");
-      
-      const existing = users[index];
-      
-      // Update fields (keeping snake_case storage format)
-      const updatedRow = {
-        ...existing,
-        name: updatedUser.name ?? existing.name,
-        phone: updatedUser.phone ?? existing.phone,
-        ic_number: updatedUser.icNumber ?? existing.ic_number,
-        home_address: updatedUser.homeAddress ?? existing.home_address,
-        emergency_phone: updatedUser.emergencyPhone ?? existing.emergency_phone,
-        typhoid_certificate_url: updatedUser.typhoidCertificateUrl ?? existing.typhoid_certificate_url,
-        typhoid_expiry_date: updatedUser.typhoidExpiryDate ?? existing.typhoid_expiry_date,
-        typhoid_verification_status: updatedUser.typhoidVerificationStatus ?? existing.typhoid_verification_status,
-        typhoid_verification_details: updatedUser.typhoidVerificationDetails ?? existing.typhoid_verification_details,
-        department: updatedUser.department ?? existing.department,
-        employee_id: updatedUser.employeeId ?? existing.employee_id,
-        shift_start: updatedUser.shiftStart ?? existing.shift_start,
-        shift_end: updatedUser.shiftEnd ?? existing.shift_end,
-        base_salary: updatedUser.baseSalary ?? existing.base_salary,
-        salary_type: updatedUser.salaryType ?? existing.salary_type
-      };
+  const updateLocal = () => {
+    const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
+    const index = users.findIndex((u: any) => u.id === updatedUser.id);
+    
+    if (index === -1) throw new Error("User not found");
+    
+    const existing = users[index];
+    
+    // Update fields (keeping snake_case storage format)
+    const updatedRow = {
+      ...existing,
+      name: updatedUser.name ?? existing.name,
+      phone: updatedUser.phone ?? existing.phone,
+      ic_number: updatedUser.icNumber ?? existing.ic_number,
+      home_address: updatedUser.homeAddress ?? existing.home_address,
+      emergency_phone: updatedUser.emergencyPhone ?? existing.emergency_phone,
+      typhoid_certificate_url: updatedUser.typhoidCertificateUrl ?? existing.typhoid_certificate_url,
+      typhoid_expiry_date: updatedUser.typhoidExpiryDate ?? existing.typhoid_expiry_date,
+      typhoid_verification_status: updatedUser.typhoidVerificationStatus ?? existing.typhoid_verification_status,
+      typhoid_verification_details: updatedUser.typhoidVerificationDetails ?? existing.typhoid_verification_details,
+      department: updatedUser.department ?? existing.department,
+      employee_id: updatedUser.employeeId ?? existing.employee_id,
+      shift_start: updatedUser.shiftStart ?? existing.shift_start,
+      shift_end: updatedUser.shiftEnd ?? existing.shift_end,
+      base_salary: updatedUser.baseSalary ?? existing.base_salary,
+      salary_type: updatedUser.salaryType ?? existing.salary_type
+    };
 
-      users[index] = updatedRow;
-      localStorage.setItem('users', JSON.stringify(users));
+    users[index] = updatedRow;
+    localStorage.setItem('users', JSON.stringify(users));
 
-      const mappedUser = mapUser(updatedRow);
-      
-      // Update local session if it matches
-      const currentSession = getSession();
-      if (currentSession && currentSession.id === mappedUser.id) {
-          setSession(mappedUser);
-      }
-      return mappedUser;
+    const mappedUser = mapUser(updatedRow);
+    
+    // Update local session if it matches
+    const currentSession = getSession();
+    if (currentSession && currentSession.id === mappedUser.id) {
+        setSession(mappedUser);
     }
+    return mappedUser;
+  };
 
+  if (!isTrulyOnline()) {
+    return updateLocal();
+  }
+
+  try {
     // SQL Implementation
     const [existing] = await sql`SELECT * FROM users WHERE id = ${updatedUser.id}`;
     if (!existing) throw new Error("User not found");
@@ -144,38 +149,58 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
 
     return mappedUser;
   } catch (error) {
-    console.error("Error updating user:", error);
-    throw error;
+    console.error("Error updating user in SQL, updating local:", error);
+    return updateLocal();
   }
 };
 
 export const deleteUser = async (id: string): Promise<void> => {
-  if (isOffline) {
+  const deleteLocal = () => {
     const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
     const filtered = users.filter((u: any) => u.id !== id);
     localStorage.setItem('users', JSON.stringify(filtered));
+  };
+
+  if (!isTrulyOnline()) {
+    deleteLocal();
     return;
   }
-  await sql`DELETE FROM users WHERE id = ${id}`;
+  try {
+    await sql`DELETE FROM users WHERE id = ${id}`;
+  } catch (e) {
+    console.error("Error deleting user from SQL, deleting local:", e);
+    deleteLocal();
+  }
 };
 
 export const login = async (username: string, password: string): Promise<User> => {
+  const loginLocal = () => {
+    const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
+    const user = users.find((u: any) => u.username === username && u.password === password);
+    if (user) return mapUser(user);
+    
+    // Fallback for demo: if no users exist at all, allow a default admin login
+    if (users.length === 0 && username === 'admin' && password === 'admin') {
+       // This is a bit complex as register is async, but for local it's fine
+       return null; 
+    }
+    
+    return null;
+  };
+
   try {
-    if (isOffline) {
-      const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
-      const user = users.find((u: any) => u.username === username && u.password === password);
-      if (user) return mapUser(user);
+    if (!isTrulyOnline()) {
+      const u = loginLocal();
+      if (u) return u;
       
-      // Fallback for demo: if no users exist at all, allow a default admin login
-      if (users.length === 0 && username === 'admin' && password === 'admin') {
-         const admin = await register('admin', 'admin', 'System Admin', 'Management');
-         // Hack: Force role to admin for the first user
-         const allUsers = safeJSONParse<any[]>(localStorage.getItem('users'), []);
-         allUsers[0].role = 'ADMIN';
-         localStorage.setItem('users', JSON.stringify(allUsers));
-         return { ...admin, role: 'ADMIN' };
+      // Special case for default admin
+      if (username === 'admin' && password === 'admin') {
+          const admin = await register('admin', 'admin', 'System Admin', 'Management');
+          const allUsers = safeJSONParse<any[]>(localStorage.getItem('users'), []);
+          allUsers[allUsers.length-1].role = 'ADMIN';
+          localStorage.setItem('users', JSON.stringify(allUsers));
+          return { ...admin, role: 'ADMIN' };
       }
-      
       throw new Error('Invalid credentials');
     }
 
@@ -187,12 +212,15 @@ export const login = async (username: string, password: string): Promise<User> =
     throw new Error('Invalid credentials');
   } catch (error: any) {
     console.error("Login error:", error);
+    // If SQL fails, try local as fallback
+    const u = loginLocal();
+    if (u) return u;
     throw new Error(error.message || 'Authentication failed');
   }
 };
 
 export const register = async (username: string, password: string, name: string, department: string): Promise<User> => {
-  try {
+  const registerLocal = () => {
     const newUser = {
       id: generateId(),
       username,
@@ -201,7 +229,6 @@ export const register = async (username: string, password: string, name: string,
       role: 'STAFF',
       department: department || 'General',
       avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`,
-      // Empty fields for profile
       phone: null,
       employee_id: null,
       ic_number: null,
@@ -209,20 +236,34 @@ export const register = async (username: string, password: string, name: string,
       emergency_phone: null
     };
 
-    if (isOffline) {
-      const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
-      if (users.find((u: any) => u.username === username)) {
-        throw new Error('Username already taken');
-      }
-      users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
-      return mapUser(newUser);
+    const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
+    if (users.find((u: any) => u.username === username)) {
+      throw new Error('Username already taken');
+    }
+    users.push(newUser);
+    localStorage.setItem('users', JSON.stringify(users));
+    return mapUser(newUser);
+  };
+
+  try {
+    if (!isTrulyOnline()) {
+      return registerLocal();
     }
 
     const [existing] = await sql`SELECT id FROM users WHERE username = ${username}`;
     if (existing) {
       throw new Error('Username already taken');
     }
+
+    const newUser = {
+      id: generateId(),
+      username,
+      password,
+      name,
+      role: 'STAFF',
+      department: department || 'General',
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`
+    };
 
     const [row] = await sql`
       INSERT INTO users (id, username, password, name, role, department, avatar)
@@ -232,8 +273,12 @@ export const register = async (username: string, password: string, name: string,
 
     return mapUser(row);
   } catch (error) {
-    console.error("Register error:", error);
-    throw error;
+    console.error("Register error in SQL, registering local:", error);
+    try {
+        return registerLocal();
+    } catch (e) {
+        throw error; // Throw original SQL error if local also fails (e.g. username taken)
+    }
   }
 };
 

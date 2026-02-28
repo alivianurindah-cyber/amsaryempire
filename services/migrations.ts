@@ -1,12 +1,12 @@
-import { sql, isOffline } from './db';
+import { sql, isTrulyOnline } from './db';
 import { safeJSONParse } from '../src/utils/json';
 
 export const initDB = async () => {
   try {
     console.log("Initializing database schema...");
 
-    if (isOffline) {
-      console.log("System in Offline Mode: Checking LocalStorage schema...");
+    if (!isTrulyOnline()) {
+      console.log("System in Offline/Error Mode: Checking LocalStorage schema...");
       
       let users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
       
@@ -158,8 +158,8 @@ export const initDB = async () => {
 };
 
 export const migrateFromLocalToSQL = async () => {
-  if (isOffline) {
-    console.log("Cannot migrate to SQL while in offline mode.");
+  if (!isTrulyOnline()) {
+    console.log("Cannot migrate to SQL while in offline/error mode.");
     return false;
   }
 

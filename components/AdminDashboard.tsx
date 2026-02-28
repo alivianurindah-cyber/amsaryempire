@@ -7,7 +7,7 @@ import { getAttendanceRecords, updateAttendanceRecord } from '../services/attend
 import { getMusicTracks, addMusicTrack, deleteMusicTrack } from '../services/music';
 import { generateLyrics } from '../services/geminiService';
 import { migrateFromLocalToSQL } from '../services/migrations';
-import { isOffline } from '../services/db';
+import { isTrulyOnline } from '../services/db';
 
 interface AdminDashboardProps {
   user: User;
@@ -149,13 +149,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             }
                         }
 
-                        const lyrics = await generateLyrics(base64Audio, title, artist);
+                        // Generate lyrics in background or with timeout to not block upload
+                        let lyrics = "Lyrics processing...";
+                        try {
+                            // We don't await here to allow the upload to proceed, 
+                            // but we need the lyrics for the initial save.
+                            // Let's try a quick generation, if it takes > 10s we skip for now.
+                            const lyricsPromise = generateLyrics(base64Audio, title, artist);
+                            const timeoutPromise = new Promise<string>((resolve) => setTimeout(() => resolve("Lyrics will be available soon."), 10000));
+                            lyrics = await Promise.race([lyricsPromise, timeoutPromise]);
+                        } catch (e) {
+                            console.warn("Lyrics generation failed", e);
+                            lyrics = "Lyrics unavailable.";
+                        }
 
                         const newTrack: MusicTrack = {
-                            id: crypto.randomUUID(),
+                            id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
                             title,
                             artist,
-                            url: base64Audio, // Still provide base64 for online fallback or if blob fails
+                            url: base64Audio, 
                             lyrics,
                             createdAt: Date.now()
                         };
@@ -164,6 +176,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                         resolve();
                     } catch (err) {
                         console.error(`Failed to process ${file.name}`, err);
+                        alert(`Failed to upload ${file.name}. Please try a smaller file.`);
                         resolve(); 
                     }
                 };
@@ -731,7 +744,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         {activeTab === 'MUSIC' && (
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm p-6">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-lg font-semibold text-slate-900">Music Library</h2>
+                    <div>
+                        <h2 className="text-lg font-semibold text-slate-900">Music Library</h2>
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className={`w-2 h-2 rounded-full ${isTrulyOnline() ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                            <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
+                                {isTrulyOnline() ? 'Connected to Cloud' : 'Local Storage Mode'}
+                            </span>
+                        </div>
+                    </div>
                     <div className="relative">
                         <input
                             type="file"
@@ -1009,16 +1030,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                 <div className="bg-blue-50 text-blue-800 text-sm p-4 rounded-lg mb-4 border border-blue-100">
                                     <strong>Note:</strong> This process will copy users, attendance records, and music tracks. It will skip any records that already exist in the new database to prevent duplicates.
                                     <br/><br/>
-                                    Current Mode: <strong>{isOffline ? 'Offline (LocalStorage)' : 'Online (Neon PostgreSQL)'}</strong>
+                                    Current Mode: <strong>{isTrulyOnline() ? 'Online (Neon PostgreSQL)' : 'Offline (LocalStorage)'}</strong>
                                 </div>
                                 <Button 
                                     onClick={handleMigrate} 
-                                    disabled={isMigrating || isOffline}
+                                    disabled={isMigrating || !isTrulyOnline()}
                                     className="w-full md:w-auto"
                                 >
                                     {isMigrating ? 'Migrating...' : 'Start Migration to SQL'}
                                 </Button>
-                                {isOffline && (
+                                {!isTrulyOnline() && (
                                     <p className="text-xs text-red-500 mt-2">
                                         You must connect to the Neon database first (by setting DATABASE_URL) before you can migrate data.
                                     </p>

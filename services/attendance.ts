@@ -1,4 +1,4 @@
-import { sql, isOffline } from './db';
+import { sql, isTrulyOnline } from './db';
 import { AttendanceRecord } from '../types';
 import { safeJSONParse } from '../src/utils/json';
 
@@ -21,7 +21,7 @@ const mapRecord = (row: any): AttendanceRecord => ({
 
 export const getAttendanceRecords = async (userId?: string): Promise<AttendanceRecord[]> => {
   try {
-    if (isOffline) {
+    if (!isTrulyOnline()) {
       const raw = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
       let records = raw.map(mapRecord);
       
@@ -40,36 +40,44 @@ export const getAttendanceRecords = async (userId?: string): Promise<AttendanceR
     }
     return rows.map(mapRecord);
   } catch (error) {
-    console.error("Failed to fetch attendance records:", error);
-    return [];
+    console.error("Failed to fetch attendance records from SQL, falling back to local:", error);
+    const raw = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
+    let records = raw.map(mapRecord);
+    if (userId) {
+      records = records.filter((r: AttendanceRecord) => r.userId === userId);
+    }
+    return records.sort((a: AttendanceRecord, b: AttendanceRecord) => b.timestamp - a.timestamp);
   }
 };
 
 export const createAttendanceRecord = async (record: AttendanceRecord): Promise<void> => {
-  try {
-    if (isOffline) {
-      const records = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
-      // Store in snake_case to match DB format for consistency in mapRecord
-      const dbRow = {
-        id: record.id,
-        user_id: record.userId,
-        user_name: record.userName,
-        user_role: record.userRole,
-        type: record.type,
-        timestamp: record.timestamp,
-        date_str: record.dateStr,
-        time_str: record.timeStr,
-        location: record.location,
-        photo_url: record.photoUrl,
-        ai_verification: record.aiVerification,
-        synced: true,
-        ot_status: record.otStatus
-      };
-      records.push(dbRow);
-      localStorage.setItem('attendance_records', JSON.stringify(records));
-      return;
-    }
+  const saveToLocal = () => {
+    const records = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
+    const dbRow = {
+      id: record.id,
+      user_id: record.userId,
+      user_name: record.userName,
+      user_role: record.userRole,
+      type: record.type,
+      timestamp: record.timestamp,
+      date_str: record.dateStr,
+      time_str: record.timeStr,
+      location: record.location,
+      photo_url: record.photoUrl,
+      ai_verification: record.aiVerification,
+      synced: false, // Mark as not synced if saved to local
+      ot_status: record.otStatus
+    };
+    records.push(dbRow);
+    localStorage.setItem('attendance_records', JSON.stringify(records));
+  };
 
+  if (!isTrulyOnline()) {
+    saveToLocal();
+    return;
+  }
+
+  try {
     await sql`
       INSERT INTO attendance_records (
         id, user_id, user_name, user_role, type, timestamp, 
@@ -81,31 +89,35 @@ export const createAttendanceRecord = async (record: AttendanceRecord): Promise<
       )
     `;
   } catch (error) {
-    console.error("Failed to create attendance record:", error);
-    throw error;
+    console.error("Failed to create attendance record in SQL, saving to local:", error);
+    saveToLocal();
   }
 };
 
 export const updateAttendanceRecord = async (id: string, updates: Partial<AttendanceRecord>): Promise<void> => {
-  try {
-    if (isOffline) {
-      const records = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
-      const index = records.findIndex((r: any) => r.id === id);
-      if (index !== -1) {
-        records[index] = {
-          ...records[index],
-          ot_status: updates.otStatus !== undefined ? updates.otStatus : records[index].ot_status
-        };
-        localStorage.setItem('attendance_records', JSON.stringify(records));
-      }
-      return;
+  const updateLocal = () => {
+    const records = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
+    const index = records.findIndex((r: any) => r.id === id);
+    if (index !== -1) {
+      records[index] = {
+        ...records[index],
+        ot_status: updates.otStatus !== undefined ? updates.otStatus : records[index].ot_status
+      };
+      localStorage.setItem('attendance_records', JSON.stringify(records));
     }
+  };
 
+  if (!isTrulyOnline()) {
+    updateLocal();
+    return;
+  }
+
+  try {
     if (updates.otStatus !== undefined) {
       await sql`UPDATE attendance_records SET ot_status = ${updates.otStatus} WHERE id = ${id}`;
     }
   } catch (error) {
-    console.error("Failed to update attendance record:", error);
-    throw error;
+    console.error("Failed to update attendance record in SQL, updating local:", error);
+    updateLocal();
   }
 };
