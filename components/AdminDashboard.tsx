@@ -202,9 +202,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             item.id === queueId ? { ...item, status: 'success' } : item
                         ));
 
-                        // Refresh tracks after each successful upload
-                        const updatedTracks = await getMusicTracks();
-                        setMusicTracks(updatedTracks);
                         resolve();
                     } catch (err: any) {
                         console.error(`Failed to process ${file.name}`, err);
@@ -223,6 +220,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                 reader.readAsDataURL(file);
             });
         }
+        
+        // Refresh tracks once after all uploads in the batch are done
+        const updatedTracks = await getMusicTracks();
+        setMusicTracks(updatedTracks);
     } catch (error) {
         console.error("Upload process failed:", error);
     } finally {
