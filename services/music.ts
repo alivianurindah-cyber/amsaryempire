@@ -32,9 +32,9 @@ export const addMusicTrack = async (track: MusicTrack, _file?: File): Promise<Mu
     console.error("Failed to save track to SQL:", e);
     const msg = e.message || "";
     if (msg.includes('too large') || msg.includes('payload') || msg.includes('exceeds')) {
-        throw new Error("The music file is too large for cloud storage. Please try a smaller file (under 7MB) or a lower quality MP3.");
+        throw new Error("File too large for cloud storage. Limit is 5MB.");
     }
-    throw new Error("Cloud connection required to upload music. Please check your database settings and internet connection.");
+    throw new Error(msg || "Cloud connection required to upload music.");
   }
 };
 

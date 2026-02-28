@@ -23,7 +23,12 @@ function App() {
     setDbError(null);
     
     // 1. Ensure DB tables exist
-    await initDB();
+    try {
+        await initDB();
+    } catch (e: any) {
+        console.error("Boot error during initDB:", e);
+        // Error is already handled by getDbStatus check below
+    }
     
     const status = getDbStatus();
     if (status.status === 'ERROR') {
@@ -88,21 +93,44 @@ function App() {
                 <div className="p-6 space-y-4">
                     <div className="bg-red-50 border border-red-100 p-4 rounded-xl flex gap-3 text-red-800">
                         <AlertCircle className="w-5 h-5 shrink-0" />
-                        <p className="text-sm font-medium leading-relaxed">{dbError}</p>
+                        <div className="space-y-1">
+                            <p className="text-sm font-bold">Authentication Failed</p>
+                            <p className="text-xs leading-relaxed opacity-90">{dbError}</p>
+                        </div>
                     </div>
                     
                     <div className="space-y-4">
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correct Format Example:</p>
-                            <code className="text-[10px] block break-all bg-white p-2 border border-slate-100 rounded text-slate-600">
-                                postgresql://neondb_owner:npg_AxP0ngi3OpHG@ep-wild-recipe-aecgevtf-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require
-                            </code>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Current Connection Info:</p>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px]">
+                                    <span className="text-slate-400">Database URL:</span>
+                                    <span className="font-mono text-slate-600 break-all text-right ml-4">
+                                        {process.env.DATABASE_URL?.replace(/:([^@]+)@/, ':****@') || 
+                                         (import.meta as any).env?.VITE_DATABASE_URL?.replace(/:([^@]+)@/, ':****@') || 
+                                         'Not Set'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
 
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                            Please update your <code className="bg-slate-100 px-1 rounded">VITE_DATABASE_URL</code> environment variable. 
-                            Ensure there are no extra spaces or quotes around the URL.
-                        </p>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">How to fix this:</p>
+                            <ol className="text-xs text-slate-600 space-y-2 list-decimal ml-4">
+                                <li>Go to your <b>Neon Console</b> (neon.tech)</li>
+                                <li>Find your <b>Connection String</b> in the Dashboard</li>
+                                <li>Copy the URL (ensure it starts with <code className="bg-white px-1">postgresql://</code>)</li>
+                                <li>Update your <code className="bg-white px-1">VITE_DATABASE_URL</code> in the environment settings</li>
+                                <li><b>Important:</b> Check for extra spaces or quotes at the start/end</li>
+                            </ol>
+                        </div>
+
+                        <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1">Common Mistake:</p>
+                            <p className="text-[11px] text-amber-800 leading-relaxed">
+                                Ensure you replaced <code className="bg-white px-1 italic">YOUR_PASSWORD_HERE</code> with your actual password from Neon.
+                            </p>
+                        </div>
                         
                         <div className="pt-2 flex flex-col gap-2">
                             <Button 

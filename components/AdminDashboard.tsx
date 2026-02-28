@@ -21,6 +21,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   const [users, setUsers] = useState<User[]>([]);
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState<{ id: string; fileName: string; status: 'uploading' | 'success' | 'error'; error?: string }[]>([]);
   const [isMigrating, setIsMigrating] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -137,14 +138,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
+    const newQueue = Array.from(files).map(f => ({
+        id: Math.random().toString(36).substring(7),
+        fileName: f.name,
+        status: 'uploading' as const
+    }));
+    setUploadQueue(prev => [...prev, ...newQueue]);
 
     try {
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
+            const queueId = newQueue[i].id;
             
-            // 7MB is safer to stay under the 10MB serverless payload limit when base64 encoded
-            if (file.size > 7 * 1024 * 1024) {
-                alert(`File ${file.name} is too large. Limit is 7MB for cloud storage. Please try a smaller file or a lower bitrate MP3.`);
+            // 5MB limit to ensure base64 doesn't exceed 10MB payload limits
+            if (file.size > 5 * 1024 * 1024) {
+                setUploadQueue(prev => prev.map(item => 
+                    item.id === queueId ? { ...item, status: 'error', error: 'File too large (Limit 5MB)' } : item
+                ));
                 continue;
             }
 
@@ -156,7 +166,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                         let title = file.name.replace(/\.[^/.]+$/, "");
                         let artist = "Unknown Artist";
 
-                        // Attempt to extract Artist and Title from filename (Format: Artist - Title)
                         if (title.includes(" - ")) {
                             const parts = title.split(" - ");
                             if (parts.length >= 2) {
@@ -187,28 +196,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
 
                         await addMusicTrack(newTrack, file);
                         
+                        setUploadQueue(prev => prev.map(item => 
+                            item.id === queueId ? { ...item, status: 'success' } : item
+                        ));
+
                         // Refresh tracks after each successful upload
                         const updatedTracks = await getMusicTracks();
                         setMusicTracks(updatedTracks);
                         resolve();
                     } catch (err: any) {
                         console.error(`Failed to process ${file.name}`, err);
-                        alert(`Failed to upload ${file.name}: ${err.message || "Unknown error"}. Try a smaller file.`);
+                        setUploadQueue(prev => prev.map(item => 
+                            item.id === queueId ? { ...item, status: 'error', error: err.message || "Upload failed" } : item
+                        ));
                         resolve(); 
                     }
+                };
+                reader.onerror = () => {
+                    setUploadQueue(prev => prev.map(item => 
+                        item.id === queueId ? { ...item, status: 'error', error: 'Read error' } : item
+                    ));
+                    resolve();
                 };
                 reader.readAsDataURL(file);
             });
         }
-        
-        const tracks = await getMusicTracks();
-        setMusicTracks(tracks);
     } catch (error) {
-        console.error("Bulk upload error", error);
-        alert("An error occurred during upload.");
+        console.error("Upload process failed:", error);
     } finally {
         setIsUploading(false);
-        e.target.value = ''; 
+        if (e.target) e.target.value = '';
+        // Clear success items after 5 seconds
+        setTimeout(() => {
+            setUploadQueue(prev => prev.filter(item => item.status === 'error'));
+        }, 5000);
     }
   };
 
@@ -807,6 +828,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             <RefreshCw className={`w-3 h-3 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />
                             Retry Connection
                         </Button>
+                    </div>
+                )}
+
+                {uploadQueue.length > 0 && (
+                    <div className="mb-6 space-y-2">
+                        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Upload Status</h3>
+                        {uploadQueue.map(item => (
+                            <div key={item.id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                                item.status === 'uploading' ? 'bg-blue-50 border-blue-100 text-blue-700' :
+                                item.status === 'success' ? 'bg-green-50 border-green-100 text-green-700' :
+                                'bg-red-50 border-red-100 text-red-700'
+                            }`}>
+                                <div className="flex items-center gap-3">
+                                    {item.status === 'uploading' ? (
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                    ) : item.status === 'success' ? (
+                                        <CheckCircle2 className="w-4 h-4" />
+                                    ) : (
+                                        <AlertCircle className="w-4 h-4" />
+                                    )}
+                                    <span className="text-sm font-medium truncate max-w-[200px] sm:max-w-md">{item.fileName}</span>
+                                </div>
+                                <div className="text-xs font-medium">
+                                    {item.status === 'uploading' ? 'Uploading...' : 
+                                     item.status === 'success' ? 'Success' : 
+                                     item.error || 'Error'}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 

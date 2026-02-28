@@ -19,6 +19,14 @@ const getDbUrl = () => {
   const url = clean(netlifyUrl) || clean(stdUrl) || clean(viteUrl);
   
   if (url) {
+      const source = clean(netlifyUrl) ? 'NETLIFY_DATABASE_URL' : clean(stdUrl) ? 'DATABASE_URL' : 'VITE_DATABASE_URL';
+      console.log(`Using database URL from: ${source}`);
+      if (url.includes('YOUR_PASSWORD_HERE')) {
+          console.error("Database password placeholder detected. Please replace 'YOUR_PASSWORD_HERE' with your actual Neon database password.");
+          connectionError = "Database password placeholder detected. Please update your DATABASE_URL with your actual password from the Neon console.";
+          currentStatus = 'ERROR';
+          return 'INVALID_FORMAT';
+      }
       if (!url.startsWith('postgres') && !url.startsWith('postgresql')) {
           console.error("Invalid DATABASE_URL format. It must start with postgresql://");
           return 'INVALID_FORMAT';
@@ -102,8 +110,7 @@ export const sql = async (stringsOrQuery: TemplateStringsArray | string, ...valu
   const instance = await getSqlInstance();
   
   if (!instance) {
-    console.warn("Database unavailable, returning empty result");
-    return [];
+    throw new Error(connectionError || "Database connection unavailable. Please check your settings.");
   }
 
   // Handle both tagged template and function call styles
