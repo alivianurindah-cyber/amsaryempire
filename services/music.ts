@@ -32,7 +32,7 @@ export const addMusicTrack = async (track: MusicTrack, _file?: File): Promise<Mu
     console.error("Failed to save track to SQL:", e);
     const msg = e.message || "";
     if (msg.includes('too large') || msg.includes('payload') || msg.includes('exceeds')) {
-        throw new Error("File too large for cloud storage. Limit is 5MB.");
+        throw new Error("File too large for cloud storage. Limit is 10MB (approx 7.5MB for base64 safety).");
     }
     throw new Error(msg || "Cloud connection required to upload music.");
   }
@@ -44,5 +44,22 @@ export const deleteMusicTrack = async (id: string): Promise<void> => {
   } catch (e: any) {
     console.error("Failed to delete track from SQL:", e);
     throw new Error("Cloud connection required to delete music. Please check your database settings.");
+  }
+};
+
+export const updateMusicTrack = async (id: string, updates: Partial<MusicTrack>): Promise<void> => {
+  try {
+    const { title, artist, lyrics } = updates;
+    await sql`
+      UPDATE music_tracks 
+      SET 
+        title = COALESCE(${title ?? null}, title),
+        artist = COALESCE(${artist ?? null}, artist),
+        lyrics = COALESCE(${lyrics ?? null}, lyrics)
+      WHERE id = ${id}
+    `;
+  } catch (e: any) {
+    console.error("Failed to update track in SQL:", e);
+    throw new Error("Cloud connection required to update music. Please check your database settings.");
   }
 };

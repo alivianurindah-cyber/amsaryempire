@@ -4,7 +4,7 @@ import { AttendanceRecord, User, MusicTrack } from '../types';
 import { Button } from './Button';
 import { getUsers, updateUser, deleteUser } from '../services/auth';
 import { getAttendanceRecords, updateAttendanceRecord } from '../services/attendance';
-import { getMusicTracks, addMusicTrack, deleteMusicTrack } from '../services/music';
+import { getMusicTracks, addMusicTrack, deleteMusicTrack, updateMusicTrack } from '../services/music';
 import { generateLyrics } from '../services/geminiService';
 import { migrateFromLocalToSQL } from '../services/migrations';
 import { isTrulyOnline, retryConnection } from '../services/db';
@@ -53,6 +53,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   // Editing State
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState<Partial<User>>({});
+  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
+  const [editTrackForm, setEditTrackForm] = useState<{ title: string; artist: string }>({ title: '', artist: '' });
 
   useEffect(() => {
     // Load Logs
@@ -150,10 +152,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
             const file = files[i];
             const queueId = newQueue[i].id;
             
-            // 5MB limit to ensure base64 doesn't exceed 10MB payload limits
-            if (file.size > 5 * 1024 * 1024) {
+            // 10MB limit to ensure base64 doesn't exceed 13.3MB (might hit serverless limits)
+            if (file.size > 10 * 1024 * 1024) {
                 setUploadQueue(prev => prev.map(item => 
-                    item.id === queueId ? { ...item, status: 'error', error: 'File too large (Limit 5MB)' } : item
+                    item.id === queueId ? { ...item, status: 'error', error: 'File too large (Limit 10MB)' } : item
                 ));
                 continue;
             }
@@ -230,6 +232,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         setTimeout(() => {
             setUploadQueue(prev => prev.filter(item => item.status === 'error'));
         }, 5000);
+    }
+  };
+
+  const handleEditTrack = (track: MusicTrack) => {
+    setEditingTrackId(track.id);
+    setEditTrackForm({ title: track.title, artist: track.artist });
+  };
+
+  const handleSaveTrack = async (id: string) => {
+    try {
+        await updateMusicTrack(id, editTrackForm);
+        setEditingTrackId(null);
+        const tracks = await getMusicTracks();
+        setMusicTracks(tracks);
+    } catch (error: any) {
+        alert(error.message || "Failed to update track");
     }
   };
 
@@ -862,26 +880,62 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
 
                 <div className="grid grid-cols-1 gap-4">
                     {musicTracks.map(track => (
-                        <div key={track.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center text-brand-600">
+                        <div key={track.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200 gap-4">
+                            <div className="flex items-center gap-4 flex-1">
+                                <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center text-brand-600 shrink-0">
                                     <Music className="w-5 h-5" />
                                 </div>
-                                <div>
-                                    <h3 className="font-medium text-slate-900">{track.title}</h3>
-                                    <p className="text-xs text-slate-500">{track.artist}</p>
-                                </div>
+                                {editingTrackId === track.id ? (
+                                    <div className="flex flex-col gap-2 flex-1">
+                                        <input 
+                                            type="text" 
+                                            className="w-full border rounded px-2 py-1 text-sm"
+                                            value={editTrackForm.title}
+                                            onChange={e => setEditTrackForm({...editTrackForm, title: e.target.value})}
+                                            placeholder="Track Title"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            className="w-full border rounded px-2 py-1 text-xs"
+                                            value={editTrackForm.artist}
+                                            onChange={e => setEditTrackForm({...editTrackForm, artist: e.target.value})}
+                                            placeholder="Artist"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="truncate">
+                                        <h3 className="font-medium text-slate-900 truncate">{track.title}</h3>
+                                        <p className="text-xs text-slate-500 truncate">{track.artist}</p>
+                                    </div>
+                                )}
                             </div>
                             
-                            <div className="flex items-center gap-4">
-                                <audio controls src={track.url} className="h-8 w-64" />
-                                <Button 
-                                    variant="ghost" 
-                                    onClick={() => handleDeleteTrack(track.id)}
-                                    className="text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </Button>
+                            <div className="flex items-center justify-between sm:justify-end gap-4">
+                                <audio controls src={track.url} className="h-8 w-48 sm:w-64" />
+                                <div className="flex items-center gap-1">
+                                    {editingTrackId === track.id ? (
+                                        <>
+                                            <button onClick={() => setEditingTrackId(null)} className="p-1.5 text-slate-400 hover:text-slate-600">
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => handleSaveTrack(track.id)} className="p-1.5 text-green-600 hover:bg-green-50 rounded">
+                                                <Save className="w-4 h-4" />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => handleEditTrack(track)} className="p-1.5 text-brand-600 hover:bg-brand-50 rounded">
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDeleteTrack(track.id)}
+                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))}
