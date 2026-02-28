@@ -15,13 +15,14 @@ const mapRecord = (row: any): AttendanceRecord => ({
   location: row.location,
   photoUrl: row.photo_url,
   aiVerification: row.ai_verification,
-  synced: row.synced
+  synced: row.synced,
+  otStatus: row.ot_status
 });
 
 export const getAttendanceRecords = async (userId?: string): Promise<AttendanceRecord[]> => {
   try {
     if (isOffline) {
-      const raw = safeJSONParse(localStorage.getItem('attendance_records'), []);
+      const raw = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
       let records = raw.map(mapRecord);
       
       if (userId) {
@@ -47,7 +48,7 @@ export const getAttendanceRecords = async (userId?: string): Promise<AttendanceR
 export const createAttendanceRecord = async (record: AttendanceRecord): Promise<void> => {
   try {
     if (isOffline) {
-      const records = safeJSONParse(localStorage.getItem('attendance_records'), []);
+      const records = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
       // Store in snake_case to match DB format for consistency in mapRecord
       const dbRow = {
         id: record.id,
@@ -61,7 +62,8 @@ export const createAttendanceRecord = async (record: AttendanceRecord): Promise<
         location: record.location,
         photo_url: record.photoUrl,
         ai_verification: record.aiVerification,
-        synced: true
+        synced: true,
+        ot_status: record.otStatus
       };
       records.push(dbRow);
       localStorage.setItem('attendance_records', JSON.stringify(records));
@@ -71,15 +73,39 @@ export const createAttendanceRecord = async (record: AttendanceRecord): Promise<
     await sql`
       INSERT INTO attendance_records (
         id, user_id, user_name, user_role, type, timestamp, 
-        date_str, time_str, location, photo_url, ai_verification, synced
+        date_str, time_str, location, photo_url, ai_verification, synced, ot_status
       ) VALUES (
         ${record.id}, ${record.userId}, ${record.userName}, ${record.userRole}, ${record.type}, 
         ${record.timestamp}, ${record.dateStr}, ${record.timeStr}, ${JSON.stringify(record.location)}, 
-        ${record.photoUrl}, ${record.aiVerification}, ${true}
+        ${record.photoUrl}, ${record.aiVerification}, ${true}, ${record.otStatus || null}
       )
     `;
   } catch (error) {
     console.error("Failed to create attendance record:", error);
+    throw error;
+  }
+};
+
+export const updateAttendanceRecord = async (id: string, updates: Partial<AttendanceRecord>): Promise<void> => {
+  try {
+    if (isOffline) {
+      const records = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
+      const index = records.findIndex((r: any) => r.id === id);
+      if (index !== -1) {
+        records[index] = {
+          ...records[index],
+          ot_status: updates.otStatus !== undefined ? updates.otStatus : records[index].ot_status
+        };
+        localStorage.setItem('attendance_records', JSON.stringify(records));
+      }
+      return;
+    }
+
+    if (updates.otStatus !== undefined) {
+      await sql`UPDATE attendance_records SET ot_status = ${updates.otStatus} WHERE id = ${id}`;
+    }
+  } catch (error) {
+    console.error("Failed to update attendance record:", error);
     throw error;
   }
 };

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Music, Upload, Play, Pause, FileAudio, DollarSign, FileText, Calendar } from 'lucide-react';
+import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Music, Upload, DollarSign, FileText, Calendar } from 'lucide-react';
 import { AttendanceRecord, User, MusicTrack } from '../types';
 import { Button } from './Button';
 import { getUsers, updateUser, deleteUser } from '../services/auth';
-import { getAttendanceRecords } from '../services/attendance';
+import { getAttendanceRecords, updateAttendanceRecord } from '../services/attendance';
 import { getMusicTracks, addMusicTrack, deleteMusicTrack } from '../services/music';
 import { generateLyrics } from '../services/geminiService';
 
@@ -19,11 +19,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   const [users, setUsers] = useState<User[]>([]);
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
   
   // Payroll State
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [dateFrom, setDateFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+  const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
   const [showPayslip, setShowPayslip] = useState<string | null>(null); // User ID for payslip modal
+  const [showDetails, setShowDetails] = useState<string | null>(null); // User ID for details modal
   
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -171,6 +172,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
           await deleteMusicTrack(id);
           const tracks = await getMusicTracks();
           setMusicTracks(tracks);
+      }
+  };
+
+  const handleOTStatusChange = async (recordId: string, status: 'APPROVED' | 'REJECTED') => {
+      try {
+          await updateAttendanceRecord(recordId, { otStatus: status });
+          const recs = await getAttendanceRecords();
+          setRecords(recs);
+      } catch (err) {
+          console.error("Failed to update OT status", err);
+          alert("Failed to update OT status. Please try again.");
       }
   };
 
@@ -494,15 +506,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                                         />
                                                     </div>
                                                 </div>
-                                                <div>
-                                                    <label className="text-[10px] text-slate-400 block">Base Salary (RM)</label>
-                                                    <input 
-                                                        type="number"
-                                                        className="w-full border rounded px-2 py-1 text-xs"
-                                                        value={editForm.baseSalary || ''}
-                                                        onChange={e => setEditForm({...editForm, baseSalary: Number(e.target.value)})}
-                                                        placeholder="0.00"
-                                                    />
+                                                <div className="flex gap-2">
+                                                    <div className="flex-1">
+                                                        <label className="text-[10px] text-slate-400 block">Base Salary (RM)</label>
+                                                        <input 
+                                                            type="number"
+                                                            className="w-full border rounded px-2 py-1 text-xs"
+                                                            value={editForm.baseSalary || ''}
+                                                            onChange={e => setEditForm({...editForm, baseSalary: Number(e.target.value)})}
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <label className="text-[10px] text-slate-400 block">Type</label>
+                                                        <select
+                                                            className="w-full border rounded px-2 py-1 text-xs"
+                                                            value={editForm.salaryType || 'MONTHLY'}
+                                                            onChange={e => setEditForm({...editForm, salaryType: e.target.value as 'HOURLY' | 'DAILY' | 'MONTHLY'})}
+                                                        >
+                                                            <option value="MONTHLY">Monthly</option>
+                                                            <option value="DAILY">Daily</option>
+                                                            <option value="HOURLY">Hourly</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ) : (
@@ -516,7 +542,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                                 )}
                                                 {u.baseSalary && (
                                                     <div className="text-xs text-green-600 font-medium">
-                                                        RM {u.baseSalary.toLocaleString()}
+                                                        RM {u.baseSalary.toLocaleString()} {u.salaryType === 'HOURLY' ? '/ hr' : u.salaryType === 'DAILY' ? '/ day' : '/ mo'}
                                                     </div>
                                                 )}
                                             </div>
@@ -709,15 +735,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-slate-900">Payroll Summary</h2>
-                            <p className="text-sm text-slate-500">Manage salaries and deductions</p>
+                            <p className="text-sm text-slate-500">Manage salaries, deductions, and OT</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-slate-400" />
                         <input 
-                            type="month" 
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            type="date" 
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                            className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                        />
+                        <span className="text-slate-400">to</span>
+                        <input 
+                            type="date" 
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
                             className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                         />
                     </div>
@@ -731,6 +764,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                     <th className="px-6 py-4">Staff Member</th>
                                     <th className="px-6 py-4 text-center">Days Worked</th>
                                     <th className="px-6 py-4 text-center">Late (Days)</th>
+                                    <th className="px-6 py-4 text-center">OT (Hrs)</th>
                                     <th className="px-6 py-4 text-right">Base Salary</th>
                                     <th className="px-6 py-4 text-right text-red-600">Deductions</th>
                                     <th className="px-6 py-4 text-right text-green-600">Net Salary</th>
@@ -739,48 +773,81 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {users.filter(u => u.role !== 'ADMIN').map(u => {
-                                    const [year, month] = selectedMonth.split('-').map(Number);
+                                    const fromDate = new Date(dateFrom);
+                                    fromDate.setHours(0, 0, 0, 0);
+                                    const toDate = new Date(dateTo);
+                                    toDate.setHours(23, 59, 59, 999);
+
                                     const userRecords = records.filter(r => {
                                         const d = new Date(r.timestamp);
-                                        return r.userId === u.id && 
-                                               d.getMonth() + 1 === month && 
-                                               d.getFullYear() === year &&
-                                               r.type === 'CLOCK_IN';
+                                        return r.userId === u.id && d >= fromDate && d <= toDate;
                                     });
 
-                                    const totalDays = new Set(userRecords.map(r => r.dateStr)).size;
+                                    const clockInRecords = userRecords.filter(r => r.type === 'CLOCK_IN');
+                                    const clockOutRecords = userRecords.filter(r => r.type === 'CLOCK_OUT');
+
+                                    const totalDays = new Set(clockInRecords.map(r => r.dateStr)).size;
                                     
                                     let lateOccurrences = 0;
                                     let totalDeductions = 0;
+                                    let totalOTMinutes = 0;
+                                    let approvedOTMinutes = 0;
 
-                                    userRecords.forEach(r => {
+                                    clockInRecords.forEach(r => {
                                         if (!u.shiftStart) return;
-                                        
                                         const recordTime = new Date(r.timestamp);
                                         const [shiftHour, shiftMinute] = u.shiftStart.split(':').map(Number);
-                                        
                                         const shiftTime = new Date(recordTime);
                                         shiftTime.setHours(shiftHour, shiftMinute, 0, 0);
 
-                                        // Calculate difference in minutes
-                                        // We only care if they are late (recordTime > shiftTime)
                                         if (recordTime > shiftTime) {
                                             const diffMs = recordTime.getTime() - shiftTime.getTime();
                                             const diffMins = Math.floor(diffMs / 60000);
-
                                             if (diffMins > 0) {
                                                 lateOccurrences++;
-                                                if (diffMins <= 30) {
-                                                    totalDeductions += 15;
-                                                } else {
-                                                    totalDeductions += 25;
+                                                totalDeductions += diffMins <= 30 ? 15 : 25;
+                                            }
+                                        }
+                                    });
+
+                                    clockOutRecords.forEach(r => {
+                                        if (!u.shiftEnd) return;
+                                        const recordTime = new Date(r.timestamp);
+                                        const [shiftHour, shiftMinute] = u.shiftEnd.split(':').map(Number);
+                                        const shiftTime = new Date(recordTime);
+                                        shiftTime.setHours(shiftHour, shiftMinute, 0, 0);
+
+                                        if (recordTime > shiftTime) {
+                                            const diffMs = recordTime.getTime() - shiftTime.getTime();
+                                            const diffMins = Math.floor(diffMs / 60000);
+                                            if (diffMins > 0) {
+                                                totalOTMinutes += diffMins;
+                                                if (r.otStatus === 'APPROVED') {
+                                                    approvedOTMinutes += diffMins;
                                                 }
                                             }
                                         }
                                     });
 
                                     const baseSalary = u.baseSalary || 0;
-                                    const netSalary = Math.max(0, baseSalary - totalDeductions);
+                                    let calculatedBaseSalary = baseSalary;
+                                    let hourlyRate = 0;
+
+                                    if (u.salaryType === 'HOURLY') {
+                                        // Assuming 8 hours per day worked
+                                        calculatedBaseSalary = baseSalary * 8 * totalDays;
+                                        hourlyRate = baseSalary;
+                                    } else if (u.salaryType === 'DAILY') {
+                                        calculatedBaseSalary = baseSalary * totalDays;
+                                        hourlyRate = baseSalary / 8;
+                                    } else {
+                                        // MONTHLY (default)
+                                        calculatedBaseSalary = baseSalary;
+                                        hourlyRate = baseSalary / 26 / 8;
+                                    }
+
+                                    const otPay = (hourlyRate / 60) * approvedOTMinutes * 1.5;
+                                    const netSalary = Math.max(0, calculatedBaseSalary + otPay - totalDeductions);
 
                                     return (
                                         <tr key={u.id} className="hover:bg-slate-50 transition-colors">
@@ -805,24 +872,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                                     <span className="text-slate-400">-</span>
                                                 )}
                                             </td>
+                                            <td className="px-6 py-4 text-center">
+                                                {totalOTMinutes > 0 ? (
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-sm font-medium text-brand-600">{(approvedOTMinutes / 60).toFixed(1)}h</span>
+                                                        {totalOTMinutes > approvedOTMinutes && (
+                                                            <span className="text-[10px] text-orange-500">{(totalOTMinutes / 60).toFixed(1)}h pending</span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                )}
+                                            </td>
                                             <td className="px-6 py-4 text-right font-mono text-sm">
-                                                RM {baseSalary.toLocaleString()}
+                                                RM {calculatedBaseSalary.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                                {u.salaryType !== 'MONTHLY' && (
+                                                    <div className="text-[10px] text-slate-400">
+                                                        (RM {baseSalary} {u.salaryType === 'HOURLY' ? '/hr' : '/day'})
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-right font-mono text-sm text-red-600">
                                                 {totalDeductions > 0 ? `- RM ${totalDeductions}` : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-right font-mono text-sm font-bold text-green-600">
-                                                RM {netSalary.toLocaleString()}
+                                                RM {netSalary.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <Button 
-                                                    size="sm" 
-                                                    variant="secondary"
-                                                    onClick={() => setShowPayslip(u.id)}
-                                                    className="gap-2"
-                                                >
-                                                    <FileText className="w-4 h-4" /> Payslip
-                                                </Button>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Button 
+                                                        size="sm" 
+                                                        variant="secondary"
+                                                        onClick={() => setShowDetails(u.id)}
+                                                    >
+                                                        Details
+                                                    </Button>
+                                                    <Button 
+                                                        size="sm" 
+                                                        variant="secondary"
+                                                        onClick={() => setShowPayslip(u.id)}
+                                                        className="gap-2"
+                                                    >
+                                                        <FileText className="w-4 h-4" /> Payslip
+                                                    </Button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -842,23 +935,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                         const u = users.find(user => user.id === showPayslip);
                         if (!u) return null;
 
-                        const [year, month] = selectedMonth.split('-').map(Number);
-                        const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' });
+                        const fromDate = new Date(dateFrom);
+                        fromDate.setHours(0, 0, 0, 0);
+                        const toDate = new Date(dateTo);
+                        toDate.setHours(23, 59, 59, 999);
                         
                         const userRecords = records.filter(r => {
                             const d = new Date(r.timestamp);
-                            return r.userId === u.id && 
-                                   d.getMonth() + 1 === month && 
-                                   d.getFullYear() === year &&
-                                   r.type === 'CLOCK_IN';
+                            return r.userId === u.id && d >= fromDate && d <= toDate;
                         });
+
+                        const clockInRecords = userRecords.filter(r => r.type === 'CLOCK_IN');
+                        const clockOutRecords = userRecords.filter(r => r.type === 'CLOCK_OUT');
 
                         let totalDeductions = 0;
                         const deductionDetails: { date: string, time: string, lateMins: number, amount: number }[] = [];
+                        let approvedOTMinutes = 0;
+                        const otDetails: { date: string, time: string, otMins: number, amount: number }[] = [];
 
-                        userRecords.forEach(r => {
+                        const baseSalary = u.baseSalary || 0;
+                        const totalDays = new Set(clockInRecords.map(r => r.dateStr)).size;
+                        
+                        let calculatedBaseSalary = baseSalary;
+                        let hourlyRate = 0;
+
+                        if (u.salaryType === 'HOURLY') {
+                            calculatedBaseSalary = baseSalary * 8 * totalDays;
+                            hourlyRate = baseSalary;
+                        } else if (u.salaryType === 'DAILY') {
+                            calculatedBaseSalary = baseSalary * totalDays;
+                            hourlyRate = baseSalary / 8;
+                        } else {
+                            calculatedBaseSalary = baseSalary;
+                            hourlyRate = baseSalary / 26 / 8;
+                        }
+
+                        clockInRecords.forEach(r => {
                             if (!u.shiftStart) return;
-                            
                             const recordTime = new Date(r.timestamp);
                             const [shiftHour, shiftMinute] = u.shiftStart.split(':').map(Number);
                             const shiftTime = new Date(recordTime);
@@ -881,15 +994,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             }
                         });
 
-                        const baseSalary = u.baseSalary || 0;
-                        const netSalary = Math.max(0, baseSalary - totalDeductions);
+                        clockOutRecords.forEach(r => {
+                            if (!u.shiftEnd) return;
+                            const recordTime = new Date(r.timestamp);
+                            const [shiftHour, shiftMinute] = u.shiftEnd.split(':').map(Number);
+                            const shiftTime = new Date(recordTime);
+                            shiftTime.setHours(shiftHour, shiftMinute, 0, 0);
+
+                            if (recordTime > shiftTime) {
+                                const diffMs = recordTime.getTime() - shiftTime.getTime();
+                                const diffMins = Math.floor(diffMs / 60000);
+                                if (diffMins > 0 && r.otStatus === 'APPROVED') {
+                                    approvedOTMinutes += diffMins;
+                                    const amount = (hourlyRate / 60) * diffMins * 1.5;
+                                    otDetails.push({
+                                        date: r.dateStr,
+                                        time: r.timeStr,
+                                        otMins: diffMins,
+                                        amount
+                                    });
+                                }
+                            }
+                        });
+
+                        const otPay = (hourlyRate / 60) * approvedOTMinutes * 1.5;
+                        const netSalary = Math.max(0, calculatedBaseSalary + otPay - totalDeductions);
 
                         return (
                             <>
                                 <div className="bg-slate-900 text-white p-6 flex justify-between items-start">
                                     <div>
                                         <h2 className="text-2xl font-bold mb-1">Payslip</h2>
-                                        <p className="text-slate-400">{monthName} {year}</p>
+                                        <p className="text-slate-400">{dateFrom} to {dateTo}</p>
                                     </div>
                                     <div className="text-right">
                                         <h3 className="font-bold text-lg">Chef Ammar Group</h3>
@@ -897,7 +1033,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                     </div>
                                 </div>
                                 
-                                <div className="p-8">
+                                <div className="p-8 max-h-[70vh] overflow-y-auto">
                                     <div className="flex justify-between mb-8 pb-8 border-b border-slate-100">
                                         <div>
                                             <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Employee</p>
@@ -910,7 +1046,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                             <div className="text-sm text-slate-600">
                                                 <div className="flex justify-between gap-8 mb-1">
                                                     <span>Base Salary:</span>
-                                                    <span className="font-mono">RM {baseSalary.toLocaleString()}</span>
+                                                    <span className="font-mono">RM {calculatedBaseSalary.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                                </div>
+                                                <div className="flex justify-between gap-8 mb-1">
+                                                    <span>Rate:</span>
+                                                    <span className="font-mono text-xs text-slate-400">RM {baseSalary} {u.salaryType === 'HOURLY' ? '/hr' : u.salaryType === 'DAILY' ? '/day' : '/mo'}</span>
                                                 </div>
                                                 <div className="flex justify-between gap-8">
                                                     <span>Shift:</span>
@@ -920,45 +1060,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                         </div>
                                     </div>
 
-                                    <div className="mb-8">
-                                        <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                                            <Clock className="w-4 h-4 text-red-500" /> Late Deductions
-                                        </h4>
-                                        {deductionDetails.length > 0 ? (
-                                            <div className="bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
-                                                <table className="w-full text-sm">
-                                                    <thead className="bg-slate-100 text-xs text-slate-500 font-semibold text-left">
-                                                        <tr>
-                                                            <th className="px-4 py-2">Date</th>
-                                                            <th className="px-4 py-2">Time In</th>
-                                                            <th className="px-4 py-2">Late By</th>
-                                                            <th className="px-4 py-2 text-right">Deduction</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-100">
-                                                        {deductionDetails.map((d, i) => (
-                                                            <tr key={i}>
-                                                                <td className="px-4 py-2 text-slate-600">{d.date}</td>
-                                                                <td className="px-4 py-2 text-slate-600">{d.time}</td>
-                                                                <td className="px-4 py-2 text-red-500 font-medium">{d.lateMins} mins</td>
-                                                                <td className="px-4 py-2 text-right font-mono text-slate-900">RM {d.amount}</td>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                                <Clock className="w-4 h-4 text-green-500" /> Approved Overtime
+                                            </h4>
+                                            {otDetails.length > 0 ? (
+                                                <div className="bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="bg-slate-100 text-xs text-slate-500 font-semibold text-left">
+                                                            <tr>
+                                                                <th className="px-4 py-2">Date</th>
+                                                                <th className="px-4 py-2">OT Mins</th>
+                                                                <th className="px-4 py-2 text-right">Amount</th>
                                                             </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        ) : (
-                                            <p className="text-sm text-slate-500 italic">No late deductions for this period. Great job!</p>
-                                        )}
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100">
+                                                            {otDetails.map((d, i) => (
+                                                                <tr key={i}>
+                                                                    <td className="px-4 py-2 text-slate-600">{d.date}</td>
+                                                                    <td className="px-4 py-2 text-green-600 font-medium">{d.otMins} mins</td>
+                                                                    <td className="px-4 py-2 text-right font-mono text-slate-900">+ RM {d.amount.toFixed(2)}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-slate-500 italic">No approved overtime.</p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                                <Clock className="w-4 h-4 text-red-500" /> Late Deductions
+                                            </h4>
+                                            {deductionDetails.length > 0 ? (
+                                                <div className="bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="bg-slate-100 text-xs text-slate-500 font-semibold text-left">
+                                                            <tr>
+                                                                <th className="px-4 py-2">Date</th>
+                                                                <th className="px-4 py-2">Late By</th>
+                                                                <th className="px-4 py-2 text-right">Deduction</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100">
+                                                            {deductionDetails.map((d, i) => (
+                                                                <tr key={i}>
+                                                                    <td className="px-4 py-2 text-slate-600">{d.date}</td>
+                                                                    <td className="px-4 py-2 text-red-500 font-medium">{d.lateMins} mins</td>
+                                                                    <td className="px-4 py-2 text-right font-mono text-slate-900">- RM {d.amount.toFixed(2)}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-slate-500 italic">No late deductions. Great job!</p>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="bg-slate-50 rounded-xl p-6 flex justify-between items-center border border-slate-200">
                                         <div>
                                             <p className="text-sm text-slate-500 mb-1">Total Net Salary</p>
-                                            <p className="text-xs text-slate-400">Base - Deductions</p>
+                                            <p className="text-xs text-slate-400">Base + OT - Deductions</p>
                                         </div>
                                         <div className="text-3xl font-bold text-brand-600 font-mono">
-                                            RM {netSalary.toLocaleString()}
+                                            RM {netSalary.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                         </div>
                                     </div>
                                 </div>
@@ -968,6 +1137,161 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                     <Button onClick={() => window.print()}>
                                         <FileText className="w-4 h-4 mr-2" /> Print Payslip
                                     </Button>
+                                </div>
+                            </>
+                        );
+                    })()}
+                </div>
+            </div>
+        )}
+        {/* Details Modal */}
+        {showDetails && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden animate-in fade-in zoom-in duration-300">
+                    {(() => {
+                        const u = users.find(user => user.id === showDetails);
+                        if (!u) return null;
+
+                        const fromDate = new Date(dateFrom);
+                        fromDate.setHours(0, 0, 0, 0);
+                        const toDate = new Date(dateTo);
+                        toDate.setHours(23, 59, 59, 999);
+                        
+                        const userRecords = records.filter(r => {
+                            const d = new Date(r.timestamp);
+                            return r.userId === u.id && d >= fromDate && d <= toDate;
+                        });
+
+                        // Generate all dates in range
+                        const allDates: string[] = [];
+                        for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
+                            allDates.push(d.toISOString().split('T')[0]);
+                        }
+
+                        // Group by date
+                        const dailyData: Record<string, { in?: AttendanceRecord, out?: AttendanceRecord, lateMins: number, otMins: number }> = {};
+                        
+                        allDates.forEach(date => {
+                            dailyData[date] = { lateMins: 0, otMins: 0 };
+                        });
+
+                        userRecords.forEach(r => {
+                            if (!dailyData[r.dateStr]) {
+                                dailyData[r.dateStr] = { lateMins: 0, otMins: 0 };
+                            }
+                            if (r.type === 'CLOCK_IN') {
+                                dailyData[r.dateStr].in = r;
+                                if (u.shiftStart) {
+                                    const recordTime = new Date(r.timestamp);
+                                    const [shiftHour, shiftMinute] = u.shiftStart.split(':').map(Number);
+                                    const shiftTime = new Date(recordTime);
+                                    shiftTime.setHours(shiftHour, shiftMinute, 0, 0);
+                                    if (recordTime > shiftTime) {
+                                        dailyData[r.dateStr].lateMins = Math.floor((recordTime.getTime() - shiftTime.getTime()) / 60000);
+                                    }
+                                }
+                            } else if (r.type === 'CLOCK_OUT') {
+                                dailyData[r.dateStr].out = r;
+                                if (u.shiftEnd) {
+                                    const recordTime = new Date(r.timestamp);
+                                    const [shiftHour, shiftMinute] = u.shiftEnd.split(':').map(Number);
+                                    const shiftTime = new Date(recordTime);
+                                    shiftTime.setHours(shiftHour, shiftMinute, 0, 0);
+                                    if (recordTime > shiftTime) {
+                                        dailyData[r.dateStr].otMins = Math.floor((recordTime.getTime() - shiftTime.getTime()) / 60000);
+                                    }
+                                }
+                            }
+                        });
+
+                        const sortedDates = Object.keys(dailyData).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+                        return (
+                            <>
+                                <div className="bg-slate-900 text-white p-6 flex justify-between items-center">
+                                    <div>
+                                        <h2 className="text-xl font-bold">Attendance Details: {u.name}</h2>
+                                        <p className="text-sm text-slate-400">{dateFrom} to {dateTo}</p>
+                                    </div>
+                                    <Button variant="ghost" onClick={() => setShowDetails(null)} className="text-white hover:bg-white/10">
+                                        <X className="w-5 h-5" />
+                                    </Button>
+                                </div>
+                                
+                                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                            <tr>
+                                                <th className="px-4 py-3">Date</th>
+                                                <th className="px-4 py-3">Clock In</th>
+                                                <th className="px-4 py-3">Clock Out</th>
+                                                <th className="px-4 py-3 text-center">Late</th>
+                                                <th className="px-4 py-3 text-center">OT</th>
+                                                <th className="px-4 py-3 text-center">OT Status</th>
+                                                <th className="px-4 py-3 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {sortedDates.map(date => {
+                                                const data = dailyData[date];
+                                                const isOffDay = !data.in && !data.out;
+                                                
+                                                return (
+                                                    <tr key={date} className={`hover:bg-slate-50 ${isOffDay ? 'bg-slate-50/50' : ''}`}>
+                                                        <td className="px-4 py-3 font-medium text-slate-900">{date}</td>
+                                                        {isOffDay ? (
+                                                            <td colSpan={6} className="px-4 py-3 text-center text-slate-500 italic">Off Day</td>
+                                                        ) : (
+                                                            <>
+                                                                <td className="px-4 py-3 text-slate-600">{data.in ? data.in.timeStr : <span className="text-slate-400">-</span>}</td>
+                                                                <td className="px-4 py-3 text-slate-600">{data.out ? data.out.timeStr : <span className="text-slate-400">-</span>}</td>
+                                                                <td className="px-4 py-3 text-center">
+                                                                    {data.lateMins > 0 ? (
+                                                                        <span className="text-red-600 font-medium">{data.lateMins}m</span>
+                                                                    ) : <span className="text-slate-400">-</span>}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-center">
+                                                                    {data.otMins > 0 ? (
+                                                                        <span className="text-brand-600 font-medium">{data.otMins}m</span>
+                                                                    ) : <span className="text-slate-400">-</span>}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-center">
+                                                                    {data.out && data.otMins > 0 ? (
+                                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                                            data.out.otStatus === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                                                                            data.out.otStatus === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                                                                            'bg-orange-100 text-orange-800'
+                                                                        }`}>
+                                                                            {data.out.otStatus || 'PENDING'}
+                                                                        </span>
+                                                                    ) : <span className="text-slate-400">-</span>}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right">
+                                                                    {data.out && data.otMins > 0 && (!data.out.otStatus || data.out.otStatus === 'PENDING') && (
+                                                                        <div className="flex items-center justify-end gap-2">
+                                                                            <Button size="sm" onClick={() => handleOTStatusChange(data.out!.id, 'APPROVED')} className="bg-green-600 hover:bg-green-700 text-white">
+                                                                                Approve
+                                                                            </Button>
+                                                                            <Button size="sm" variant="secondary" onClick={() => handleOTStatusChange(data.out!.id, 'REJECTED')} className="text-red-600 hover:bg-red-50">
+                                                                                Reject
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                            </>
+                                                        )}
+                                                    </tr>
+                                                );
+                                            })}
+                                            {sortedDates.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                                                        No attendance records found for this period.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </>
                         );

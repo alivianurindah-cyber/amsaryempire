@@ -19,6 +19,7 @@ export interface User {
   shiftStart?: string; // "HH:mm"
   shiftEnd?: string; // "HH:mm"
   baseSalary?: number;
+  salaryType?: 'HOURLY' | 'DAILY' | 'MONTHLY';
 }
 
 export interface LocationData {
@@ -42,6 +43,7 @@ export interface AttendanceRecord {
   photoUrl: string; // Base64 data URL
   aiVerification?: string;
   synced: boolean;
+  otStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
 export enum AppView {

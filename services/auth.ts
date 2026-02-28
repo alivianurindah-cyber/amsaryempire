@@ -31,7 +31,8 @@ const mapUser = (row: any): User => ({
   typhoidVerificationDetails: row.typhoid_verification_details,
   shiftStart: row.shift_start,
   shiftEnd: row.shift_end,
-  baseSalary: row.base_salary ? Number(row.base_salary) : undefined
+  baseSalary: row.base_salary ? Number(row.base_salary) : undefined,
+  salaryType: row.salary_type
 });
 
 export const getUsers = async (): Promise<User[]> => {
@@ -52,7 +53,7 @@ export const getUsers = async (): Promise<User[]> => {
 export const updateUser = async (updatedUser: Partial<User> & { id: string }): Promise<User> => {
   try {
     if (isOffline) {
-      const users = safeJSONParse(localStorage.getItem('users'), []);
+      const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
       const index = users.findIndex((u: any) => u.id === updatedUser.id);
       
       if (index === -1) throw new Error("User not found");
@@ -75,7 +76,8 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
         employee_id: updatedUser.employeeId ?? existing.employee_id,
         shift_start: updatedUser.shiftStart ?? existing.shift_start,
         shift_end: updatedUser.shiftEnd ?? existing.shift_end,
-        base_salary: updatedUser.baseSalary ?? existing.base_salary
+        base_salary: updatedUser.baseSalary ?? existing.base_salary,
+        salary_type: updatedUser.salaryType ?? existing.salary_type
       };
 
       users[index] = updatedRow;
@@ -109,6 +111,7 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
     const shiftStart = updatedUser.shiftStart ?? existing.shift_start;
     const shiftEnd = updatedUser.shiftEnd ?? existing.shift_end;
     const baseSalary = updatedUser.baseSalary ?? existing.base_salary;
+    const salaryType = updatedUser.salaryType ?? existing.salary_type;
 
     const [updatedRow] = await sql`
       UPDATE users 
@@ -126,7 +129,8 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
         employee_id = ${employeeId},
         shift_start = ${shiftStart},
         shift_end = ${shiftEnd},
-        base_salary = ${baseSalary}
+        base_salary = ${baseSalary},
+        salary_type = ${salaryType}
       WHERE id = ${updatedUser.id}
       RETURNING *
     `;
@@ -147,7 +151,7 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
 
 export const deleteUser = async (id: string): Promise<void> => {
   if (isOffline) {
-    const users = safeJSONParse(localStorage.getItem('users'), []);
+    const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
     const filtered = users.filter((u: any) => u.id !== id);
     localStorage.setItem('users', JSON.stringify(filtered));
     return;
@@ -158,7 +162,7 @@ export const deleteUser = async (id: string): Promise<void> => {
 export const login = async (username: string, password: string): Promise<User> => {
   try {
     if (isOffline) {
-      const users = safeJSONParse(localStorage.getItem('users'), []);
+      const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
       const user = users.find((u: any) => u.username === username && u.password === password);
       if (user) return mapUser(user);
       
@@ -166,7 +170,7 @@ export const login = async (username: string, password: string): Promise<User> =
       if (users.length === 0 && username === 'admin' && password === 'admin') {
          const admin = await register('admin', 'admin', 'System Admin', 'Management');
          // Hack: Force role to admin for the first user
-         const allUsers = safeJSONParse(localStorage.getItem('users'), []);
+         const allUsers = safeJSONParse<any[]>(localStorage.getItem('users'), []);
          allUsers[0].role = 'ADMIN';
          localStorage.setItem('users', JSON.stringify(allUsers));
          return { ...admin, role: 'ADMIN' };
@@ -206,7 +210,7 @@ export const register = async (username: string, password: string, name: string,
     };
 
     if (isOffline) {
-      const users = safeJSONParse(localStorage.getItem('users'), []);
+      const users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
       if (users.find((u: any) => u.username === username)) {
         throw new Error('Username already taken');
       }
@@ -235,7 +239,7 @@ export const register = async (username: string, password: string, name: string,
 
 export const getSession = (): User | null => {
   const saved = localStorage.getItem(SESSION_KEY);
-  return safeJSONParse(saved, null);
+  return safeJSONParse<User | null>(saved, null);
 };
 
 export const setSession = (user: User) => {

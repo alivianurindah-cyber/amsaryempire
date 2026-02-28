@@ -8,7 +8,7 @@ export const initDB = async () => {
     if (isOffline) {
       console.log("System in Offline Mode: Checking LocalStorage schema...");
       
-      let users = safeJSONParse(localStorage.getItem('users'), []);
+      let users = safeJSONParse<any[]>(localStorage.getItem('users'), []);
       
       // Initialize Users Table in LocalStorage
       if (!localStorage.getItem('users')) {
@@ -81,6 +81,7 @@ export const initDB = async () => {
         await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS shift_start TEXT`;
         await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS shift_end TEXT`;
         await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS base_salary NUMERIC`;
+        await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS salary_type TEXT`;
     } catch (e) {
         console.log("Migration note: Columns might already exist or error adding them:", e);
     }
@@ -103,6 +104,13 @@ export const initDB = async () => {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `;
+
+    // Add new columns to attendance_records if they don't exist
+    try {
+        await sql`ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS ot_status TEXT`;
+    } catch (e) {
+        console.log("Migration note: Columns might already exist or error adding them:", e);
+    }
 
     // SQL Mode: Create Music Tracks Table
     await sql`

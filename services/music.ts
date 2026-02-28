@@ -33,7 +33,7 @@ export const addMusicTrack = async (track: MusicTrack, file?: File): Promise<Mus
   // Assuming for now the backend expects base64 in the URL field as before
   await sql`
     INSERT INTO music_tracks (id, title, artist, url, lyrics, created_at)
-    VALUES (${track.id}, ${track.title}, ${track.artist}, ${track.url}, ${track.lyrics}, ${track.created_at || track.createdAt})
+    VALUES (${track.id}, ${track.title}, ${track.artist}, ${track.url}, ${track.lyrics}, ${track.createdAt})
   `;
   return track;
 };

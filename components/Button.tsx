@@ -3,6 +3,7 @@ import { twMerge } from 'tailwind-merge';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
   isLoading?: boolean;
 }
@@ -11,12 +12,13 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   className,
   variant = 'primary',
+  size = 'md',
   fullWidth = false,
   isLoading = false,
   disabled,
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center rounded-lg px-4 py-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseStyles = 'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
   
   const variants = {
     primary: 'bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500',
@@ -25,11 +27,18 @@ export const Button: React.FC<ButtonProps> = ({
     ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-500',
   };
 
+  const sizes = {
+    sm: 'px-3 py-1.5 text-xs',
+    md: 'px-4 py-3 text-sm',
+    lg: 'px-6 py-4 text-base',
+  };
+
   return (
     <button
       className={twMerge(
         baseStyles,
         variants[variant],
+        sizes[size],
         fullWidth && 'w-full',
         className
       )}

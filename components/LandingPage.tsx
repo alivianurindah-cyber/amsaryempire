@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChefHat, ArrowRight, Star, Clock, ShieldCheck, Users, Music, Volume2, VolumeX, ListMusic, X, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
+import { ChefHat, ArrowRight, Star, Clock, ShieldCheck, Users, Music, Volume2, VolumeX, ListMusic, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { Button } from './Button';
 import { getMusicTracks } from '../services/music';
 import { MusicTrack } from '../types';
