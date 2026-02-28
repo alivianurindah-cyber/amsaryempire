@@ -747,9 +747,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                     <div>
                         <h2 className="text-lg font-semibold text-slate-900">Music Library</h2>
                         <div className="flex items-center gap-2 mt-1">
-                            <div className={`w-2 h-2 rounded-full ${isTrulyOnline() ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                            <div className={`w-2 h-2 rounded-full ${isTrulyOnline() ? 'bg-green-500' : 'bg-red-500'}`}></div>
                             <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
-                                {isTrulyOnline() ? 'Connected to Cloud' : 'Local Storage Mode'}
+                                {isTrulyOnline() ? 'Cloud Storage Active' : 'Cloud Connection Required'}
                             </span>
                         </div>
                     </div>
@@ -759,10 +759,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             accept="audio/*"
                             multiple
                             onChange={handleMusicUpload}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            disabled={isUploading}
+                            className={`absolute inset-0 w-full h-full opacity-0 ${isTrulyOnline() ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                            disabled={isUploading || !isTrulyOnline()}
                         />
-                        <Button disabled={isUploading} className="gap-2">
+                        <Button disabled={isUploading || !isTrulyOnline()} className="gap-2">
                             {isUploading ? (
                                 <>Uploading...</>
                             ) : (
@@ -771,6 +771,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                         </Button>
                     </div>
                 </div>
+
+                {!isTrulyOnline() && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg flex items-center gap-3 text-red-800 text-sm">
+                        <div className="p-2 bg-red-100 rounded-full">
+                            <Music className="w-4 h-4" />
+                        </div>
+                        <p>Music management is disabled in Offline Mode. Please connect to your database to manage tracks.</p>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 gap-4">
                     {musicTracks.map(track => (

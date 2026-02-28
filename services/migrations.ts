@@ -1,5 +1,6 @@
 import { sql, isTrulyOnline } from './db';
 import { safeJSONParse } from '../src/utils/json';
+import { getAllTracksFromDB } from './indexedDB';
 
 export const initDB = async () => {
   try {
@@ -23,11 +24,8 @@ export const initDB = async () => {
         localStorage.setItem('attendance_records', JSON.stringify([]));
       }
 
-      // Initialize Music Tracks Table in LocalStorage
-      if (!localStorage.getItem('music_tracks')) {
-        console.log("Creating local 'music_tracks' table");
-        localStorage.setItem('music_tracks', JSON.stringify([]));
-      }
+      // Music tracks are no longer initialized in LocalStorage as they require Cloud Mode
+      // or were previously in IndexedDB. We don't create a local 'music_tracks' here anymore.
 
       // Check/Create Default Admin for Offline Mode
       if (!users.find((u: any) => u.username === 'admin')) {
@@ -190,14 +188,14 @@ export const migrateFromLocalToSQL = async () => {
       }
     }
 
-    // Migrate Music Tracks
-    const localTracks = safeJSONParse<any[]>(localStorage.getItem('music_tracks'), []);
+    // Migrate Music Tracks (From IndexedDB)
+    const localTracks = await getAllTracksFromDB();
     for (const t of localTracks) {
       const [exists] = await sql`SELECT 1 FROM music_tracks WHERE id = ${t.id}`;
       if (!exists) {
         await sql`
           INSERT INTO music_tracks (id, title, artist, url, lyrics, created_at)
-          VALUES (${t.id}, ${t.title}, ${t.artist}, ${t.url}, ${t.lyrics || null}, ${t.createdAt || t.created_at || Date.now()})
+          VALUES (${t.id}, ${t.title}, ${t.artist}, ${t.url}, ${t.lyrics || null}, ${t.createdAt || (t as any).created_at || Date.now()})
         `;
       }
     }
