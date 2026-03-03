@@ -1,10 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { AttendanceRecord } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Edit2, X, Save } from 'lucide-react';
+import { AttendanceRecord, AttendanceNote } from '../types';
 import { clsx } from 'clsx';
+import { getAttendanceNotesByUser, saveAttendanceNote } from '../services/notes';
+import { Button } from './Button';
 
 interface AttendanceCalendarProps {
+  userId: string;
   records: AttendanceRecord[];
+  isAdmin?: boolean;
+  onUpdateRecord?: (record: AttendanceRecord) => void;
 }
 
 interface DayStatus {
@@ -12,11 +17,26 @@ interface DayStatus {
   isLate: boolean;
   clockIn?: string;
   clockOut?: string;
+  clockInRecord?: AttendanceRecord;
+  clockOutRecord?: AttendanceRecord;
   isToday: boolean;
+  note?: string;
 }
 
-export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ records }) => {
+export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ userId, records, isAdmin, onUpdateRecord }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [notes, setNotes] = useState<AttendanceNote[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [editNote, setEditNote] = useState('');
+  const [editClockIn, setEditClockIn] = useState('');
+  const [editClockOut, setEditClockOut] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (userId) {
+      getAttendanceNotesByUser(userId).then(setNotes);
+    }
+  }, [userId]);
 
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -34,14 +54,11 @@ export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ records 
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
-  // Process records into a map for easy lookup by date string
   const monthData = useMemo(() => {
     const map = new Map<string, DayStatus>();
     const todayStr = new Date().toLocaleDateString();
 
-    // Group records by date
     const recordsByDate: Record<string, AttendanceRecord[]> = {};
-    
     records.forEach(r => {
       if (!recordsByDate[r.dateStr]) {
         recordsByDate[r.dateStr] = [];
@@ -49,9 +66,13 @@ export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ records 
       recordsByDate[r.dateStr].push(r);
     });
 
+    const notesByDate: Record<string, string> = {};
+    notes.forEach(n => {
+      notesByDate[n.dateStr] = n.note;
+    });
+
     Object.keys(recordsByDate).forEach(dateStr => {
       const dayRecords = recordsByDate[dateStr];
-      // Sort by timestamp asc
       dayRecords.sort((a, b) => a.timestamp - b.timestamp);
 
       const clockInRecord = dayRecords.find(r => r.type === 'CLOCK_IN');
@@ -63,8 +84,6 @@ export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ records 
         const hours = date.getHours();
         const minutes = date.getMinutes();
         
-        // Late if after 14:00 (2:00 PM)
-        // Logic: if Hour > 14 OR (Hour == 14 AND Minutes > 0)
         if (hours > 14 || (hours === 14 && minutes > 0)) {
           isLate = true;
         }
@@ -75,12 +94,27 @@ export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ records 
         isLate,
         clockIn: clockInRecord?.timeStr,
         clockOut: clockOutRecord?.timeStr,
-        isToday: dateStr === todayStr
+        clockInRecord,
+        clockOutRecord,
+        isToday: dateStr === todayStr,
+        note: notesByDate[dateStr]
       });
     });
 
+    // Also add days that only have notes
+    Object.keys(notesByDate).forEach(dateStr => {
+      if (!map.has(dateStr)) {
+        map.set(dateStr, {
+          hasRecord: false,
+          isLate: false,
+          isToday: dateStr === todayStr,
+          note: notesByDate[dateStr]
+        });
+      }
+    });
+
     return map;
-  }, [records]);
+  }, [records, notes]);
 
   const renderCalendar = () => {
     const daysInMonth = getDaysInMonth(currentDate);

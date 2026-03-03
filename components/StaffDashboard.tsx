@@ -496,7 +496,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
 
         {/* CALENDAR VIEW */}
         {view === AppView.CALENDAR && (
-           <AttendanceCalendar records={records} />
+           <AttendanceCalendar userId={user.id} records={records} />
         )}
 
         {/* PROFILE VIEW */}

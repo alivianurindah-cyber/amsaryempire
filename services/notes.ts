@@ -22,6 +22,27 @@ export const getAttendanceNotes = async (dateStr: string): Promise<AttendanceNot
   }
 };
 
+export const getAttendanceNotesByUser = async (userId: string): Promise<AttendanceNote[]> => {
+  if (isOffline) {
+    const allNotes = JSON.parse(localStorage.getItem('attendance_notes') || '[]');
+    return allNotes.filter((n: AttendanceNote) => n.userId === userId);
+  }
+
+  try {
+    const rows = await sql`SELECT * FROM attendance_notes WHERE user_id = ${userId}`;
+    return rows.map((row: any) => ({
+      id: row.id,
+      userId: row.user_id,
+      dateStr: row.date_str,
+      note: row.note,
+      updatedAt: Number(row.updated_at)
+    }));
+  } catch (error) {
+    console.error("Failed to fetch attendance notes by user:", error);
+    return [];
+  }
+};
+
 export const saveAttendanceNote = async (note: AttendanceNote): Promise<boolean> => {
   if (isOffline) {
     const notes = JSON.parse(localStorage.getItem('attendance_notes') || '[]');

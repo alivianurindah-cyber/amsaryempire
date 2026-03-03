@@ -6,6 +6,8 @@ import { getUsers, updateUser, deleteUser } from '../services/auth';
 import { getAttendanceRecords, updateAttendanceRecord } from '../services/attendance';
 import { AdminAttendance } from './AdminAttendance';
 
+import { AttendanceCalendar } from './AttendanceCalendar';
+
 interface AdminDashboardProps {
   user: User;
   onLogout: () => void;
@@ -31,6 +33,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   // Editing State
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState<Partial<User>>({});
+  
+  // Calendar State
+  const [selectedStaffCalendar, setSelectedStaffCalendar] = useState<string | null>(null);
 
   useEffect(() => {
     // Load Logs
@@ -594,6 +599,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                                 </>
                                             ) : (
                                                 <>
+                                                    <button onClick={() => setSelectedStaffCalendar(u.id)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="View Calendar">
+                                                        <Calendar className="w-4 h-4" />
+                                                    </button>
                                                     <button onClick={() => handleEditClick(u)} className="p-1.5 text-brand-600 hover:bg-brand-50 rounded">
                                                         <Edit2 className="w-4 h-4" />
                                                     </button>
@@ -1189,6 +1197,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             </>
                         );
                     })()}
+                </div>
+            </div>
+        )}
+        {/* CALENDAR MODAL */}
+        {selectedStaffCalendar && (
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-white w-full max-w-4xl rounded-2xl shadow-xl border border-slate-100 flex flex-col max-h-[90vh]">
+                    <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                        <h2 className="text-lg font-bold text-slate-900">
+                            Staff Calendar - {users.find(u => u.id === selectedStaffCalendar)?.name}
+                        </h2>
+                        <button onClick={() => setSelectedStaffCalendar(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <div className="p-6 overflow-y-auto">
+                        <AttendanceCalendar 
+                            userId={selectedStaffCalendar} 
+                            records={records.filter(r => r.userId === selectedStaffCalendar)} 
+                            isAdmin={true}
+                            onUpdateRecord={(updatedRecord) => {
+                                setRecords(records.map(r => r.id === updatedRecord.id ? updatedRecord : r));
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
         )}
