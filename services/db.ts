@@ -40,7 +40,7 @@ const getDbUrl = () => {
 };
 
 const dbUrl = getDbUrl();
-export const isOffline = !dbUrl || dbUrl === 'INVALID_FORMAT';
+export let isOffline = !dbUrl || dbUrl === 'INVALID_FORMAT';
 
 export type DbStatus = 'OFFLINE' | 'CONNECTING' | 'CONNECTED' | 'ERROR';
 let currentStatus: DbStatus = isOffline ? 'OFFLINE' : 'CONNECTING';
@@ -83,19 +83,20 @@ export const getSqlInstance = async () => {
     connectionError = null;
     return sqlInstance;
   } catch (error: any) {
-    currentStatus = 'ERROR';
     console.error("Failed to initialize Neon client:", error);
     
     const msg = error.message || "";
     if (msg.includes('authentication failed')) {
-        connectionError = "Database authentication failed. The password provided in your DATABASE_URL is incorrect for user 'neondb_owner'.";
+        connectionError = "Database authentication failed. The password provided in your DATABASE_URL is incorrect for user 'neondb_owner'. Falling back to offline mode.";
     } else if (msg.includes('DNS name not found') || msg.includes('ENOTFOUND')) {
-        connectionError = "Database host not found. Please check the hostname in your DATABASE_URL.";
+        connectionError = "Database host not found. Please check the hostname in your DATABASE_URL. Falling back to offline mode.";
     } else {
-        connectionError = msg || "Failed to connect to database.";
+        connectionError = msg || "Failed to connect to database. Falling back to offline mode.";
     }
     
     console.error(connectionError);
+    currentStatus = 'OFFLINE';
+    isOffline = true;
     sqlInstance = undefined; 
     return null;
   }
