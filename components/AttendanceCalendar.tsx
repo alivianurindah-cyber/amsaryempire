@@ -116,6 +116,80 @@ export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ userId, 
     return map;
   }, [records, notes]);
 
+  const handleDayClick = (dateStr: string, status?: DayStatus) => {
+    if (!isAdmin) return;
+    
+    setSelectedDate(dateStr);
+    setEditNote(status?.note || '');
+    setEditClockIn(status?.clockIn || '');
+    setEditClockOut(status?.clockOut || '');
+  };
+
+  const handleSaveDay = async () => {
+    if (!selectedDate || !userId) return;
+    setIsSaving(true);
+    
+    try {
+      // Save Note
+      const note: AttendanceNote = {
+        id: Math.random().toString(36).substring(2) + Date.now().toString(36),
+        userId,
+        dateStr: selectedDate,
+        note: editNote,
+        updatedAt: Date.now()
+      };
+      await saveAttendanceNote(note);
+      
+      // Update local notes state
+      setNotes(prev => {
+        const existingIndex = prev.findIndex(n => n.dateStr === selectedDate);
+        if (existingIndex !== -1) {
+          const newNotes = [...prev];
+          newNotes[existingIndex] = note;
+          return newNotes;
+        }
+        return [...prev, note];
+      });
+
+      // Update Attendance Records if changed
+      const status = monthData.get(selectedDate);
+      if (status && onUpdateRecord) {
+        if (status.clockInRecord && editClockIn !== status.clockIn) {
+          // Parse the new time and update the timestamp
+          const [hours, minutes] = editClockIn.split(':').map(Number);
+          const newDate = new Date(status.clockInRecord.timestamp);
+          newDate.setHours(hours, minutes, 0, 0);
+          
+          const updatedRecord = {
+            ...status.clockInRecord,
+            timeStr: newDate.toLocaleTimeString(),
+            timestamp: newDate.getTime()
+          };
+          onUpdateRecord(updatedRecord);
+        }
+        
+        if (status.clockOutRecord && editClockOut !== status.clockOut) {
+          const [hours, minutes] = editClockOut.split(':').map(Number);
+          const newDate = new Date(status.clockOutRecord.timestamp);
+          newDate.setHours(hours, minutes, 0, 0);
+          
+          const updatedRecord = {
+            ...status.clockOutRecord,
+            timeStr: newDate.toLocaleTimeString(),
+            timestamp: newDate.getTime()
+          };
+          onUpdateRecord(updatedRecord);
+        }
+      }
+      
+      setSelectedDate(null);
+    } catch (error) {
+      console.error("Failed to save day details", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const renderCalendar = () => {
     const daysInMonth = getDaysInMonth(currentDate);
     const firstDay = getFirstDayOfMonth(currentDate);
@@ -137,18 +211,25 @@ export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ userId, 
       days.push(
         <div 
           key={day} 
+          onClick={() => handleDayClick(dateStr, status)}
           className={clsx(
             "h-20 sm:h-24 border-b border-r border-slate-100 p-1 relative flex flex-col transition-colors",
             status?.isToday ? "bg-blue-50/30" : "bg-white",
-            isWeekend && "bg-slate-50/30"
+            isWeekend && "bg-slate-50/30",
+            isAdmin && "cursor-pointer hover:bg-slate-50"
           )}
         >
-          <span className={clsx(
-            "text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full mb-1",
-            status?.isToday ? "bg-brand-600 text-white" : "text-slate-400"
-          )}>
-            {day}
-          </span>
+          <div className="flex justify-between items-start mb-1">
+            <span className={clsx(
+              "text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full",
+              status?.isToday ? "bg-brand-600 text-white" : "text-slate-400"
+            )}>
+              {day}
+            </span>
+            {status?.note && (
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 mr-1" title="Has note"></div>
+            )}
+          </div>
 
           {status?.hasRecord ? (
             <div className={clsx(
@@ -236,8 +317,66 @@ export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ userId, 
                 <div className="w-3 h-3 bg-red-100 border border-red-200 rounded"></div>
                 <span>Late ({'>'} 2 PM)</span>
              </div>
+             <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span>Has Note</span>
+             </div>
           </div>
        </div>
+
+       {/* Edit Day Modal */}
+       {selectedDate && isAdmin && (
+         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+             <div className="flex items-center justify-between p-4 border-b border-slate-100">
+               <h3 className="font-bold text-slate-900">Edit Details - {selectedDate}</h3>
+               <button onClick={() => setSelectedDate(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded-full">
+                 <X className="w-5 h-5" />
+               </button>
+             </div>
+             <div className="p-4 space-y-4">
+               {monthData.get(selectedDate)?.hasRecord && (
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Clock In</label>
+                     <input
+                       type="time"
+                       value={editClockIn}
+                       onChange={(e) => setEditClockIn(e.target.value)}
+                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Clock Out</label>
+                     <input
+                       type="time"
+                       value={editClockOut}
+                       onChange={(e) => setEditClockOut(e.target.value)}
+                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                     />
+                   </div>
+                 </div>
+               )}
+               <div>
+                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Note</label>
+                 <textarea
+                   value={editNote}
+                   onChange={(e) => setEditNote(e.target.value)}
+                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none"
+                   rows={3}
+                   placeholder="Add a note for this day..."
+                 />
+               </div>
+               <div className="flex justify-end gap-2 pt-2">
+                 <Button variant="secondary" onClick={() => setSelectedDate(null)}>Cancel</Button>
+                 <Button onClick={handleSaveDay} disabled={isSaving}>
+                   {isSaving ? 'Saving...' : 'Save Changes'}
+                 </Button>
+               </div>
+             </div>
+           </div>
+         </div>
+       )}
     </div>
   );
 };

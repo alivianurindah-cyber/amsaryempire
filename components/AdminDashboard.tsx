@@ -1217,8 +1217,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                             userId={selectedStaffCalendar} 
                             records={records.filter(r => r.userId === selectedStaffCalendar)} 
                             isAdmin={true}
-                            onUpdateRecord={(updatedRecord) => {
+                            onUpdateRecord={async (updatedRecord) => {
                                 setRecords(records.map(r => r.id === updatedRecord.id ? updatedRecord : r));
+                                await updateAttendanceRecord(updatedRecord);
                             }}
                         />
                     </div>
