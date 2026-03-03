@@ -55,12 +55,3 @@ export enum AppView {
   SETTINGS = 'SETTINGS',
   CALENDAR = 'CALENDAR'
 }
-
-export interface MusicTrack {
-  id: string;
-  title: string;
-  artist: string;
-  url: string; // Base64 data URL
-  lyrics: string;
-  createdAt: number;
-}

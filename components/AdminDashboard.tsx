@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Music, Upload, DollarSign, FileText, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
-import { AttendanceRecord, User, MusicTrack } from '../types';
+import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Upload, DollarSign, FileText, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
+import { AttendanceRecord, User } from '../types';
 import { Button } from './Button';
 import { getUsers, updateUser, deleteUser } from '../services/auth';
 import { getAttendanceRecords, updateAttendanceRecord } from '../services/attendance';
-import { getMusicTracks, addMusicTrack, deleteMusicTrack, updateMusicTrack } from '../services/music';
-import { generateLyrics } from '../services/geminiService';
-import { migrateFromLocalToSQL } from '../services/migrations';
 import { isTrulyOnline, retryConnection } from '../services/db';
 
 interface AdminDashboardProps {
@@ -16,13 +13,9 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUserUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'MUSIC' | 'PAYROLL' | 'SYSTEM'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'PAYROLL'>('LOGS');
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadQueue, setUploadQueue] = useState<{ id: string; fileName: string; status: 'uploading' | 'success' | 'error'; error?: string }[]>([]);
-  const [isMigrating, setIsMigrating] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
 
@@ -33,9 +26,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         setDbError(status.error);
     } else {
         setDbError(null);
-        // Reload data if successful
-        const tracks = await getMusicTracks();
-        setMusicTracks(tracks);
     }
     setIsRetrying(false);
   };
@@ -53,8 +43,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   // Editing State
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState<Partial<User>>({});
-  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
-  const [editTrackForm, setEditTrackForm] = useState<{ title: string; artist: string }>({ title: '', artist: '' });
 
   useEffect(() => {
     // Load Logs
@@ -65,8 +53,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
             setRecords(recs);
             const usrs = await getUsers();
             setUsers(usrs);
-            const tracks = await getMusicTracks();
-            setMusicTracks(tracks);
         } catch (error: any) {
             console.error("Failed to load data:", error);
             if (error.message?.includes('authentication failed')) {
@@ -135,131 +121,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
     }
   };
 
-  const handleMusicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsUploading(true);
-    const newQueue = Array.from(files).map(f => ({
-        id: Math.random().toString(36).substring(7),
-        fileName: f.name,
-        status: 'uploading' as const
-    }));
-    setUploadQueue(prev => [...prev, ...newQueue]);
-
-    try {
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const queueId = newQueue[i].id;
-            
-            // 10MB limit to ensure base64 doesn't exceed 13.3MB (might hit serverless limits)
-            if (file.size > 10 * 1024 * 1024) {
-                setUploadQueue(prev => prev.map(item => 
-                    item.id === queueId ? { ...item, status: 'error', error: 'File too large (Limit 10MB)' } : item
-                ));
-                continue;
-            }
-
-            await new Promise<void>((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = async () => {
-                    try {
-                        const base64Audio = reader.result as string;
-                        let title = file.name.replace(/\.[^/.]+$/, "");
-                        let artist = "Unknown Artist";
-
-                        if (title.includes(" - ")) {
-                            const parts = title.split(" - ");
-                            if (parts.length >= 2) {
-                                artist = parts[0].trim();
-                                title = parts.slice(1).join(" - ").trim();
-                            }
-                        }
-
-                        // Generate lyrics with a shorter timeout for UI
-                        let lyrics = "Lyrics processing...";
-                        try {
-                            const lyricsPromise = generateLyrics(base64Audio, title, artist);
-                            const timeoutPromise = new Promise<string>((resolve) => setTimeout(() => resolve("Lyrics will be available soon."), 8000));
-                            lyrics = await Promise.race([lyricsPromise, timeoutPromise]);
-                        } catch (e) {
-                            console.warn("Lyrics generation failed", e);
-                            lyrics = "Lyrics unavailable.";
-                        }
-
-                        const newTrack: MusicTrack = {
-                            id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36),
-                            title,
-                            artist,
-                            url: base64Audio, 
-                            lyrics,
-                            createdAt: Date.now()
-                        };
-
-                        await addMusicTrack(newTrack, file);
-                        
-                        setUploadQueue(prev => prev.map(item => 
-                            item.id === queueId ? { ...item, status: 'success' } : item
-                        ));
-
-                        resolve();
-                    } catch (err: any) {
-                        console.error(`Failed to process ${file.name}`, err);
-                        setUploadQueue(prev => prev.map(item => 
-                            item.id === queueId ? { ...item, status: 'error', error: err.message || "Upload failed" } : item
-                        ));
-                        resolve(); 
-                    }
-                };
-                reader.onerror = () => {
-                    setUploadQueue(prev => prev.map(item => 
-                        item.id === queueId ? { ...item, status: 'error', error: 'Read error' } : item
-                    ));
-                    resolve();
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-        
-        // Refresh tracks once after all uploads in the batch are done
-        const updatedTracks = await getMusicTracks();
-        setMusicTracks(updatedTracks);
-    } catch (error) {
-        console.error("Upload process failed:", error);
-    } finally {
-        setIsUploading(false);
-        if (e.target) e.target.value = '';
-        // Clear success items after 5 seconds
-        setTimeout(() => {
-            setUploadQueue(prev => prev.filter(item => item.status === 'error'));
-        }, 5000);
-    }
-  };
-
-  const handleEditTrack = (track: MusicTrack) => {
-    setEditingTrackId(track.id);
-    setEditTrackForm({ title: track.title, artist: track.artist });
-  };
-
-  const handleSaveTrack = async (id: string) => {
-    try {
-        await updateMusicTrack(id, editTrackForm);
-        setEditingTrackId(null);
-        const tracks = await getMusicTracks();
-        setMusicTracks(tracks);
-    } catch (error: any) {
-        alert(error.message || "Failed to update track");
-    }
-  };
-
-  const handleDeleteTrack = async (id: string) => {
-      if (window.confirm('Delete this track?')) {
-          await deleteMusicTrack(id);
-          const tracks = await getMusicTracks();
-          setMusicTracks(tracks);
-      }
-  };
-
   const handleOTStatusChange = async (recordId: string, status: 'APPROVED' | 'REJECTED') => {
       try {
           await updateAttendanceRecord(recordId, { otStatus: status });
@@ -268,33 +129,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
       } catch (err) {
           console.error("Failed to update OT status", err);
           alert("Failed to update OT status. Please try again.");
-      }
-  };
-
-  const handleMigrate = async () => {
-      if (!window.confirm("Are you sure you want to migrate data from LocalStorage to the Neon Database? This will only copy records that don't already exist.")) {
-          return;
-      }
-      setIsMigrating(true);
-      try {
-          const success = await migrateFromLocalToSQL();
-          if (success) {
-              alert("Migration completed successfully!");
-              // Reload data
-              const recs = await getAttendanceRecords();
-              setRecords(recs);
-              const usrs = await getUsers();
-              setUsers(usrs);
-              const tracks = await getMusicTracks();
-              setMusicTracks(tracks);
-          } else {
-              alert("Migration failed or you are currently in offline mode.");
-          }
-      } catch (error) {
-          console.error("Migration error:", error);
-          alert("An error occurred during migration.");
-      } finally {
-          setIsMigrating(false);
       }
   };
 
@@ -342,22 +176,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                     Staff Management
                 </button>
                 <button 
-                    onClick={() => setActiveTab('MUSIC')}
-                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'MUSIC' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    Music
-                </button>
-                <button 
                     onClick={() => setActiveTab('PAYROLL')}
                     className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'PAYROLL' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     Payroll
-                </button>
-                <button 
-                    onClick={() => setActiveTab('SYSTEM')}
-                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'SYSTEM' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    System
                 </button>
             </div>
 
@@ -797,158 +619,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                 </div>
             </div>
         )}
-        {/* MUSIC TABLE */}
-        {activeTab === 'MUSIC' && (
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm p-6">
-                <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <h2 className="text-lg font-semibold text-slate-900">Music Library</h2>
-                        <div className="flex items-center gap-2 mt-1">
-                            <div className={`w-2 h-2 rounded-full ${isTrulyOnline() ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                            <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
-                                {isTrulyOnline() ? 'Cloud Storage Active' : 'Cloud Connection Required'}
-                            </span>
-                        </div>
-                    </div>
-                    <div className="relative">
-                        <input
-                            type="file"
-                            accept="audio/*"
-                            multiple
-                            onChange={handleMusicUpload}
-                            className={`absolute inset-0 w-full h-full opacity-0 ${isTrulyOnline() ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                            disabled={isUploading || !isTrulyOnline()}
-                        />
-                        <Button disabled={isUploading || !isTrulyOnline()} className="gap-2">
-                            {isUploading ? (
-                                <>Uploading...</>
-                            ) : (
-                                <><Upload className="w-4 h-4" /> Upload Track</>
-                            )}
-                        </Button>
-                    </div>
-                </div>
-
-                {!isTrulyOnline() && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-red-800 text-sm">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-red-100 rounded-full">
-                                <Music className="w-4 h-4" />
-                            </div>
-                            <p>Music management is disabled in Offline Mode. Please connect to your database to manage tracks.</p>
-                        </div>
-                        <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            onClick={handleRetryConnection}
-                            disabled={isRetrying}
-                            className="shrink-0"
-                        >
-                            <RefreshCw className={`w-3 h-3 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />
-                            Retry Connection
-                        </Button>
-                    </div>
-                )}
-
-                {uploadQueue.length > 0 && (
-                    <div className="mb-6 space-y-2">
-                        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Upload Status</h3>
-                        {uploadQueue.map(item => (
-                            <div key={item.id} className={`flex items-center justify-between p-3 rounded-lg border ${
-                                item.status === 'uploading' ? 'bg-blue-50 border-blue-100 text-blue-700' :
-                                item.status === 'success' ? 'bg-green-50 border-green-100 text-green-700' :
-                                'bg-red-50 border-red-100 text-red-700'
-                            }`}>
-                                <div className="flex items-center gap-3">
-                                    {item.status === 'uploading' ? (
-                                        <RefreshCw className="w-4 h-4 animate-spin" />
-                                    ) : item.status === 'success' ? (
-                                        <CheckCircle2 className="w-4 h-4" />
-                                    ) : (
-                                        <AlertCircle className="w-4 h-4" />
-                                    )}
-                                    <span className="text-sm font-medium truncate max-w-[200px] sm:max-w-md">{item.fileName}</span>
-                                </div>
-                                <div className="text-xs font-medium">
-                                    {item.status === 'uploading' ? 'Uploading...' : 
-                                     item.status === 'success' ? 'Success' : 
-                                     item.error || 'Error'}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 gap-4">
-                    {musicTracks.map(track => (
-                        <div key={track.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200 gap-4">
-                            <div className="flex items-center gap-4 flex-1">
-                                <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center text-brand-600 shrink-0">
-                                    <Music className="w-5 h-5" />
-                                </div>
-                                {editingTrackId === track.id ? (
-                                    <div className="flex flex-col gap-2 flex-1">
-                                        <input 
-                                            type="text" 
-                                            className="w-full border rounded px-2 py-1 text-sm"
-                                            value={editTrackForm.title}
-                                            onChange={e => setEditTrackForm({...editTrackForm, title: e.target.value})}
-                                            placeholder="Track Title"
-                                        />
-                                        <input 
-                                            type="text" 
-                                            className="w-full border rounded px-2 py-1 text-xs"
-                                            value={editTrackForm.artist}
-                                            onChange={e => setEditTrackForm({...editTrackForm, artist: e.target.value})}
-                                            placeholder="Artist"
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="truncate">
-                                        <h3 className="font-medium text-slate-900 truncate">{track.title}</h3>
-                                        <p className="text-xs text-slate-500 truncate">{track.artist}</p>
-                                    </div>
-                                )}
-                            </div>
-                            
-                            <div className="flex items-center justify-between sm:justify-end gap-4">
-                                <audio controls src={track.url} className="h-8 w-48 sm:w-64" />
-                                <div className="flex items-center gap-1">
-                                    {editingTrackId === track.id ? (
-                                        <>
-                                            <button onClick={() => setEditingTrackId(null)} className="p-1.5 text-slate-400 hover:text-slate-600">
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                            <button onClick={() => handleSaveTrack(track.id)} className="p-1.5 text-green-600 hover:bg-green-50 rounded">
-                                                <Save className="w-4 h-4" />
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button onClick={() => handleEditTrack(track)} className="p-1.5 text-brand-600 hover:bg-brand-50 rounded">
-                                                <Edit2 className="w-4 h-4" />
-                                            </button>
-                                            <button 
-                                                onClick={() => handleDeleteTrack(track.id)}
-                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                    {musicTracks.length === 0 && (
-                        <div className="text-center py-12 text-slate-400">
-                            <Music className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                            <p>No music tracks uploaded yet.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        )}
         {/* PAYROLL TABLE */}
         {activeTab === 'PAYROLL' && (
             <div className="space-y-6">
@@ -1146,49 +816,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                 })}
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            </div>
-        )}
-
-        {activeTab === 'SYSTEM' && (
-            <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-900">System Settings</h2>
-                        <p className="text-slate-500">Manage database and system integration</p>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="p-6 border-b border-slate-100">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-1">Database Migration</h3>
-                        <p className="text-sm text-slate-500">
-                            Migrate your data from the old offline database (LocalStorage) to the new system integration (Neon PostgreSQL).
-                        </p>
-                    </div>
-                    <div className="p-6 bg-slate-50">
-                        <div className="flex items-start gap-4">
-                            <div className="flex-1">
-                                <div className="bg-blue-50 text-blue-800 text-sm p-4 rounded-lg mb-4 border border-blue-100">
-                                    <strong>Note:</strong> This process will copy users, attendance records, and music tracks. It will skip any records that already exist in the new database to prevent duplicates.
-                                    <br/><br/>
-                                    Current Mode: <strong>{isTrulyOnline() ? 'Online (Neon PostgreSQL)' : 'Offline (LocalStorage)'}</strong>
-                                </div>
-                                <Button 
-                                    onClick={handleMigrate} 
-                                    disabled={isMigrating || !isTrulyOnline()}
-                                    className="w-full md:w-auto"
-                                >
-                                    {isMigrating ? 'Migrating...' : 'Start Migration to SQL'}
-                                </Button>
-                                {!isTrulyOnline() && (
-                                    <p className="text-xs text-red-500 mt-2">
-                                        You must connect to the Neon database first (by setting DATABASE_URL) before you can migrate data.
-                                    </p>
-                                )}
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

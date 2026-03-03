@@ -50,41 +50,6 @@ export const verifyAttendanceImage = async (base64Image: string): Promise<string
 };
 
 /**
- * Generates lyrics for a song using Gemini Audio.
- */
-export const generateLyrics = async (base64Audio: string, title: string, artist: string): Promise<string> => {
-  try {
-    const ai = getAiClient();
-    if (!ai) return "Lyrics unavailable (No API Key)";
-
-    // Remove the data URL prefix if present
-    const base64Data = base64Audio.split(',')[1] || base64Audio;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-native-audio-preview-12-2025',
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: 'audio/mp3', // Assuming MP3, but Gemini is flexible
-            },
-          },
-          {
-            text: `Listen to this song titled "${title}" by "${artist}". Please transcribe the lyrics accurately. Format them clearly with line breaks. Do not include timestamps or extra commentary, just the lyrics.`,
-          },
-        ],
-      },
-    });
-
-    return response.text || "Lyrics not found.";
-  } catch (error) {
-    console.error("Gemini lyrics generation failed:", error);
-    return "Lyrics generation failed.";
-  }
-};
-
-/**
  * Verifies a Typhoid Vaccination Certificate.
  * Returns verification status and extracted expiry date.
  */

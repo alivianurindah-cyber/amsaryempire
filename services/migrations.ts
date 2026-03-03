@@ -1,6 +1,5 @@
 import { sql, isOffline, isTrulyOnline } from './db';
 import { safeJSONParse } from '../src/utils/json';
-import { getAllTracksFromDB } from './indexedDB';
 
 export const initDB = async () => {
   try {
@@ -109,18 +108,6 @@ export const initDB = async () => {
     } catch (e) {
         console.log("Migration note: Columns might already exist or error adding them:", e);
     }
-
-    // SQL Mode: Create Music Tracks Table
-    await sql`
-      CREATE TABLE IF NOT EXISTS music_tracks (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        artist TEXT NOT NULL,
-        url TEXT NOT NULL,
-        lyrics TEXT,
-        created_at BIGINT NOT NULL
-      );
-    `;
     
     // Check/Create Default Admin for SQL Mode
     // We check existence first to avoid unique constraint errors without relying on ON CONFLICT syntax availability
@@ -151,59 +138,6 @@ export const initDB = async () => {
     return true;
   } catch (error) {
     console.error("Failed to initialize database schema:", error);
-    return false;
-  }
-};
-
-export const migrateFromLocalToSQL = async () => {
-  if (!isTrulyOnline()) {
-    console.log("Cannot migrate to SQL while in offline/error mode.");
-    return false;
-  }
-
-  try {
-    console.log("Starting migration from LocalStorage to SQL...");
-    
-    // Migrate Users
-    const localUsers = safeJSONParse<any[]>(localStorage.getItem('users'), []);
-    for (const u of localUsers) {
-      const [exists] = await sql`SELECT 1 FROM users WHERE id = ${u.id} OR username = ${u.username}`;
-      if (!exists) {
-        await sql`
-          INSERT INTO users (id, username, password, name, role, department, avatar, phone, employee_id, ic_number, home_address, emergency_phone, typhoid_certificate_url, typhoid_expiry_date, typhoid_verification_status, typhoid_verification_details, shift_start, shift_end, base_salary, salary_type)
-          VALUES (${u.id}, ${u.username}, ${u.password}, ${u.name}, ${u.role}, ${u.department}, ${u.avatar}, ${u.phone || null}, ${u.employeeId || u.employee_id || null}, ${u.icNumber || u.ic_number || null}, ${u.homeAddress || u.home_address || null}, ${u.emergencyPhone || u.emergency_phone || null}, ${u.typhoidCertificateUrl || u.typhoid_certificate_url || null}, ${u.typhoidExpiryDate || u.typhoid_expiry_date || null}, ${u.typhoidVerificationStatus || u.typhoid_verification_status || null}, ${u.typhoidVerificationDetails || u.typhoid_verification_details || null}, ${u.shiftStart || u.shift_start || null}, ${u.shiftEnd || u.shift_end || null}, ${u.baseSalary || u.base_salary || null}, ${u.salaryType || u.salary_type || null})
-        `;
-      }
-    }
-
-    // Migrate Attendance Records
-    const localRecords = safeJSONParse<any[]>(localStorage.getItem('attendance_records'), []);
-    for (const r of localRecords) {
-      const [exists] = await sql`SELECT 1 FROM attendance_records WHERE id = ${r.id}`;
-      if (!exists) {
-        await sql`
-          INSERT INTO attendance_records (id, user_id, user_name, user_role, type, timestamp, date_str, time_str, location, photo_url, ai_verification, synced, ot_status)
-          VALUES (${r.id}, ${r.userId || r.user_id}, ${r.userName || r.user_name}, ${r.userRole || r.user_role}, ${r.type}, ${r.timestamp}, ${r.dateStr || r.date_str}, ${r.timeStr || r.time_str}, ${r.location ? JSON.stringify(r.location) : null}, ${r.photoUrl || r.photo_url || null}, ${r.aiVerification || r.ai_verification || null}, true, ${r.otStatus || r.ot_status || null})
-        `;
-      }
-    }
-
-    // Migrate Music Tracks (From IndexedDB)
-    const localTracks = await getAllTracksFromDB();
-    for (const t of localTracks) {
-      const [exists] = await sql`SELECT 1 FROM music_tracks WHERE id = ${t.id}`;
-      if (!exists) {
-        await sql`
-          INSERT INTO music_tracks (id, title, artist, url, lyrics, created_at)
-          VALUES (${t.id}, ${t.title}, ${t.artist}, ${t.url}, ${t.lyrics || null}, ${t.createdAt || (t as any).created_at || Date.now()})
-        `;
-      }
-    }
-
-    console.log("Migration completed successfully.");
-    return true;
-  } catch (error) {
-    console.error("Migration failed:", error);
     return false;
   }
 };
