@@ -46,6 +46,25 @@ export interface AttendanceRecord {
   otStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
+export interface LeaveRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  reason: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  appliedAt: number;
+}
+
+export interface AttendanceNote {
+  id: string;
+  userId: string;
+  dateStr: string; // YYYY-MM-DD
+  note: string;
+  updatedAt: number;
+}
+
 export enum AppView {
   LOGIN = 'LOGIN',
   DASHBOARD = 'DASHBOARD',
@@ -53,5 +72,6 @@ export enum AppView {
   HISTORY = 'HISTORY',
   PROFILE = 'PROFILE',
   SETTINGS = 'SETTINGS',
-  CALENDAR = 'CALENDAR'
+  CALENDAR = 'CALENDAR',
+  LEAVE = 'LEAVE'
 }

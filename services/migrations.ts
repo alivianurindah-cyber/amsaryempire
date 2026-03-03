@@ -109,6 +109,34 @@ export const initDB = async () => {
         console.log("Migration note: Columns might already exist or error adding them:", e);
     }
     
+    // SQL Mode: Create Leave Requests Table
+    await sql`
+      CREATE TABLE IF NOT EXISTS leave_requests (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        user_name TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        status TEXT NOT NULL,
+        applied_at BIGINT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+
+    // SQL Mode: Create Attendance Notes Table
+    await sql`
+      CREATE TABLE IF NOT EXISTS attendance_notes (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        date_str TEXT NOT NULL,
+        note TEXT NOT NULL,
+        updated_at BIGINT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, date_str)
+      );
+    `;
+    
     // Check/Create Default Admin for SQL Mode
     // We check existence first to avoid unique constraint errors without relying on ON CONFLICT syntax availability
     const [adminExists] = await sql`SELECT 1 FROM users WHERE username = 'admin' LIMIT 1`;

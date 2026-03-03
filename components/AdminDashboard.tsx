@@ -5,6 +5,7 @@ import { Button } from './Button';
 import { getUsers, updateUser, deleteUser } from '../services/auth';
 import { getAttendanceRecords, updateAttendanceRecord } from '../services/attendance';
 import { isTrulyOnline, retryConnection } from '../services/db';
+import { AdminAttendance } from './AdminAttendance';
 
 interface AdminDashboardProps {
   user: User;
@@ -13,7 +14,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUserUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'PAYROLL'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'PAYROLL' | 'ATTENDANCE'>('LOGS');
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -174,6 +175,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                     className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'STAFF' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     Staff Management
+                </button>
+                <button 
+                    onClick={() => setActiveTab('ATTENDANCE')}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'ATTENDANCE' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    Attendance & Leave
                 </button>
                 <button 
                     onClick={() => setActiveTab('PAYROLL')}

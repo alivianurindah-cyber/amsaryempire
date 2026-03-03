@@ -4,6 +4,7 @@ import { AppView, AttendanceRecord, LocationData, User } from '../types';
 import { CameraCapture } from './CameraCapture';
 import { AttendanceList } from './AttendanceList';
 import { AttendanceCalendar } from './AttendanceCalendar';
+import { LeaveManagement } from './LeaveManagement';
 import { Button } from './Button';
 import { verifyAttendanceImage, verifyTyphoidCertificate } from '../services/geminiService';
 import { updateUser } from '../services/auth';
@@ -794,6 +795,13 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
           </div>
         )}
 
+        {/* LEAVE VIEW */}
+        {view === AppView.LEAVE && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <LeaveManagement user={user} />
+          </div>
+        )}
+
       </main>
 
       {/* Navigation - Fixed Bottom with safe area padding */}
@@ -812,6 +820,13 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
             <Calendar className="w-6 h-6" />
             <span className="text-[10px] font-medium">Calendar</span>
          </button>
+         <button 
+            onClick={() => setView(AppView.LEAVE)}
+            className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.LEAVE ? 'text-brand-600' : 'hover:text-brand-600'}`}
+         >
+            <Calendar className="w-6 h-6" />
+            <span className="text-[10px] font-medium">Leave</span>
+         </button>
           <button 
             onClick={() => setView(AppView.PROFILE)}
             className={`flex flex-col items-center gap-1 transition-colors ${view === AppView.PROFILE ? 'text-brand-600' : 'hover:text-brand-600'}`}
@@ -825,13 +840,6 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
          >
             <Settings className="w-6 h-6" />
             <span className="text-[10px] font-medium">Settings</span>
-         </button>
-          <button 
-            onClick={onLogout}
-            className="flex flex-col items-center gap-1 hover:text-red-500 transition-colors"
-          >
-            <LogOut className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Logout</span>
          </button>
       </nav>
     </div>
