@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, DollarSign, FileText, Calendar, AlertCircle } from 'lucide-react';
+import { LogOut, Users, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, DollarSign, FileText, Calendar, AlertCircle, Search } from 'lucide-react';
 import { AttendanceRecord, User } from '../types';
 import { Button } from './Button';
 import { getUsers, updateUser, deleteUser } from '../services/auth';
 import { getAttendanceRecords, updateAttendanceRecord } from '../services/attendance';
-import { retryConnection } from '../services/db';
 import { AdminAttendance } from './AdminAttendance';
 
 interface AdminDashboardProps {
@@ -18,15 +17,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
-
-  const handleRetryConnection = async () => {
-    const status = await retryConnection();
-    if (status.status === 'ERROR') {
-        setDbError(status.error);
-    } else {
-        setDbError(null);
-    }
-  };
   
   // Payroll State
   const [dateFrom, setDateFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
