@@ -1,4 +1,4 @@
-import { sql, isOffline, isTrulyOnline } from './db';
+import { sql, isOffline } from './db';
 import { safeJSONParse } from '../src/utils/json';
 
 export const initDB = async () => {

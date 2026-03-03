@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Search, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, Upload, DollarSign, FileText, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
+import { LogOut, Users, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, DollarSign, FileText, Calendar, AlertCircle } from 'lucide-react';
 import { AttendanceRecord, User } from '../types';
 import { Button } from './Button';
 import { getUsers, updateUser, deleteUser } from '../services/auth';
 import { getAttendanceRecords, updateAttendanceRecord } from '../services/attendance';
-import { isTrulyOnline, retryConnection } from '../services/db';
+import { retryConnection } from '../services/db';
 import { AdminAttendance } from './AdminAttendance';
 
 interface AdminDashboardProps {
@@ -17,18 +17,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'PAYROLL' | 'ATTENDANCE'>('LOGS');
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [isRetrying, setIsRetrying] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
 
   const handleRetryConnection = async () => {
-    setIsRetrying(true);
     const status = await retryConnection();
     if (status.status === 'ERROR') {
         setDbError(status.error);
     } else {
         setDbError(null);
     }
-    setIsRetrying(false);
   };
   
   // Payroll State
@@ -626,6 +623,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                 </div>
             </div>
         )}
+        {/* ATTENDANCE TABLE */}
+        {activeTab === 'ATTENDANCE' && (
+            <AdminAttendance users={users} records={records} />
+        )}
+
         {/* PAYROLL TABLE */}
         {activeTab === 'PAYROLL' && (
             <div className="space-y-6">

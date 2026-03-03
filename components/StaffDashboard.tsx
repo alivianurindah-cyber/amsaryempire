@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, LogOut, User as UserIcon, Settings, Calendar, ChefHat, AlertCircle, Phone, MapPin, HeartPulse, Bell, Shield, ChevronRight, CheckCircle, Plus } from 'lucide-react';
+import { Home, User as UserIcon, Settings, Calendar, ChefHat, AlertCircle, Phone, MapPin, HeartPulse, Bell, Shield, ChevronRight, CheckCircle, Plus } from 'lucide-react';
 import { AppView, AttendanceRecord, LocationData, User } from '../types';
 import { CameraCapture } from './CameraCapture';
 import { AttendanceList } from './AttendanceList';
