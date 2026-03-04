@@ -249,9 +249,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
             <Button 
                 onClick={onLogout} 
                 variant="ghost" 
-                className="text-slate-500 hover:text-red-600 hover:bg-red-50"
+                className="text-slate-500 hover:text-red-600 hover:bg-red-50 flex items-center gap-2"
             >
                 <LogOut className="w-5 h-5" />
+                <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>

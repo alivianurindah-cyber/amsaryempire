@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, User as UserIcon, Settings, Calendar, ChefHat, AlertCircle, Phone, MapPin, HeartPulse, Bell, Shield, ChevronRight, CheckCircle, Plus } from 'lucide-react';
+import { Home, User as UserIcon, Settings, Calendar, ChefHat, AlertCircle, Phone, MapPin, HeartPulse, Bell, Shield, ChevronRight, CheckCircle, Plus, LogOut } from 'lucide-react';
 import { AppView, AttendanceRecord, LocationData, User } from '../types';
 import { CameraCapture } from './CameraCapture';
 import { AttendanceList } from './AttendanceList';
@@ -402,6 +402,14 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
                 <img src={user.avatar} alt="User" className="w-10 h-10 rounded-full border border-slate-200 shadow-sm object-cover" />
                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
              </div>
+             <button 
+                 onClick={onLogout} 
+                 className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2"
+                 title="Sign Out"
+             >
+                 <LogOut className="w-5 h-5" />
+                 <span className="hidden sm:inline text-sm font-medium">Sign Out</span>
+             </button>
           </div>
         </div>
       </header>
