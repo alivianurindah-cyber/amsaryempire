@@ -1187,7 +1187,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                         // Generate all dates in range
                         const allDates: string[] = [];
                         for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
-                            allDates.push(d.toISOString().split('T')[0]);
+                            allDates.push(d.toLocaleDateString());
                         }
 
                         // Group by date
