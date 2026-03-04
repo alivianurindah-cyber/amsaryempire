@@ -118,43 +118,60 @@ export const AdminAttendance: React.FC<AdminAttendanceProps> = ({ users, records
         <h2 className="text-xl font-bold text-slate-800 mb-6">Daily Notes by Staff</h2>
         <div className="space-y-4">
           {users.filter(u => u.role === 'STAFF').map(staff => {
-            const hasClockedIn = clockedInUsers.has(staff.id);
-            const hasClockedOut = clockedOutUsers.has(staff.id);
+            const clockInRecord = todaysRecords.find(r => r.userId === staff.id && r.type === 'CLOCK_IN');
+            const clockOutRecord = todaysRecords.find(r => r.userId === staff.id && r.type === 'CLOCK_OUT');
             
             return (
               <div key={staff.id} className="flex flex-col md:flex-row gap-4 p-4 border border-slate-100 rounded-xl bg-slate-50">
                 <div className="w-full md:w-1/3">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-3">
                     <img src={staff.avatar} alt={staff.name} className="w-10 h-10 rounded-full object-cover" />
                     <div>
                       <p className="font-semibold text-slate-800">{staff.name}</p>
                       <p className="text-xs text-slate-500">{staff.department || 'No Department'}</p>
                     </div>
                   </div>
-                  <div className="flex gap-2 text-xs font-medium">
-                    <span className={`px-2 py-1 rounded-full ${hasClockedIn ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                      In: {hasClockedIn ? 'Yes' : 'No'}
-                    </span>
-                    <span className={`px-2 py-1 rounded-full ${hasClockedOut ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                      Out: {hasClockedOut ? 'Yes' : 'No'}
-                    </span>
+                  <div className="space-y-2 text-xs">
+                    <div className={`p-2 rounded-lg border ${clockInRecord ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-100 border-slate-200'}`}>
+                      <div className="font-semibold mb-1 text-slate-700">Clock In</div>
+                      {clockInRecord ? (
+                        <>
+                          <div className="text-emerald-700 font-medium">{clockInRecord.timeStr}</div>
+                          <div className="text-slate-500 truncate mt-0.5" title={clockInRecord.location?.address}>{clockInRecord.location?.address || 'Location recorded'}</div>
+                        </>
+                      ) : (
+                        <div className="text-slate-400 italic">No record</div>
+                      )}
+                    </div>
+                    <div className={`p-2 rounded-lg border ${clockOutRecord ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-100 border-slate-200'}`}>
+                      <div className="font-semibold mb-1 text-slate-700">Clock Out</div>
+                      {clockOutRecord ? (
+                        <>
+                          <div className="text-emerald-700 font-medium">{clockOutRecord.timeStr}</div>
+                          <div className="text-slate-500 truncate mt-0.5" title={clockOutRecord.location?.address}>{clockOutRecord.location?.address || 'Location recorded'}</div>
+                        </>
+                      ) : (
+                        <div className="text-slate-400 italic">No record</div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="w-full md:w-2/3 flex gap-2">
+                <div className="w-full md:w-2/3 flex flex-col gap-2">
                   <textarea
                     value={notes[staff.id] || ''}
                     onChange={(e) => setNotes({ ...notes, [staff.id]: e.target.value })}
                     placeholder="Add a note for this staff member on this date..."
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm resize-none"
-                    rows={2}
+                    className="w-full flex-1 px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm resize-none min-h-[100px]"
                   />
-                  <Button 
-                    onClick={() => handleSaveNote(staff.id)}
-                    disabled={savingNotes[staff.id]}
-                    className="shrink-0 h-full"
-                  >
-                    {savingNotes[staff.id] ? '...' : <Save className="w-4 h-4" />}
-                  </Button>
+                  <div className="flex justify-end">
+                      <Button 
+                        onClick={() => handleSaveNote(staff.id)}
+                        disabled={savingNotes[staff.id]}
+                        className="shrink-0"
+                      >
+                        {savingNotes[staff.id] ? 'Saving...' : <><Save className="w-4 h-4 mr-2" /> Save Note</>}
+                      </Button>
+                  </div>
                 </div>
               </div>
             );
