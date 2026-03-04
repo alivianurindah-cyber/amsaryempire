@@ -63,6 +63,68 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
   const hasClockedOutToday = todaysRecords.some(r => r.type === 'CLOCK_OUT');
   const isShiftComplete = hasClockedInToday && hasClockedOutToday;
 
+  // Sound Alert Logic
+  useEffect(() => {
+    if (!user.shiftStart && !user.shiftEnd) return;
+
+    const checkTimeAndAlert = () => {
+      const now = new Date();
+      const currentHours = now.getHours().toString().padStart(2, '0');
+      const currentMinutes = now.getMinutes().toString().padStart(2, '0');
+      const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+      const todayStr = now.toLocaleDateString();
+      const todaysRecords = records.filter(r => r.dateStr === todayStr);
+      const hasClockedInToday = todaysRecords.some(r => r.type === 'CLOCK_IN');
+      const hasClockedOutToday = todaysRecords.some(r => r.type === 'CLOCK_OUT');
+
+      const playAlertSound = () => {
+        try {
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+          gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+
+          oscillator.start();
+          oscillator.stop(audioCtx.currentTime + 0.5); // Play for 0.5 seconds
+        } catch (e) {
+          console.error("Audio playback failed", e);
+        }
+      };
+
+      if (user.shiftStart === currentTimeStr && !hasClockedInToday) {
+        playAlertSound();
+        if (Notification.permission === 'granted') {
+            new Notification('Clock In Reminder', { body: 'It is time to clock in for your shift.' });
+        }
+      }
+
+      if (user.shiftEnd === currentTimeStr && hasClockedInToday && !hasClockedOutToday) {
+        playAlertSound();
+        if (Notification.permission === 'granted') {
+            new Notification('Clock Out Reminder', { body: 'It is time to clock out from your shift.' });
+        }
+      }
+    };
+
+    // Request notification permission
+    if (Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+
+    // Check immediately, then every minute
+    checkTimeAndAlert();
+    const interval = setInterval(checkTimeAndAlert, 60000);
+
+    return () => clearInterval(interval);
+  }, [user.shiftStart, user.shiftEnd, records]);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'typhoidCertificateUrl' | 'avatar') => {
     const file = e.target.files?.[0];
     if (file) {
