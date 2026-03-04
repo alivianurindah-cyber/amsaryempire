@@ -67,6 +67,8 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
     const updatedRow = {
       ...existing,
       name: updatedUser.name ?? existing.name,
+      role: updatedUser.role ?? existing.role,
+      avatar: updatedUser.avatar ?? existing.avatar,
       phone: updatedUser.phone ?? existing.phone,
       ic_number: updatedUser.icNumber ?? existing.ic_number,
       home_address: updatedUser.homeAddress ?? existing.home_address,
@@ -106,6 +108,8 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
     if (!existing) throw new Error("User not found");
 
     const name = updatedUser.name ?? existing.name;
+    const role = updatedUser.role ?? existing.role;
+    const avatar = updatedUser.avatar ?? existing.avatar;
     const phone = updatedUser.phone ?? existing.phone;
     const icNumber = updatedUser.icNumber ?? existing.ic_number;
     const homeAddress = updatedUser.homeAddress ?? existing.home_address;
@@ -125,6 +129,8 @@ export const updateUser = async (updatedUser: Partial<User> & { id: string }): P
       UPDATE users 
       SET 
         name = ${name ?? null},
+        role = ${role ?? null},
+        avatar = ${avatar ?? null},
         phone = ${phone ?? null},
         ic_number = ${icNumber ?? null},
         home_address = ${homeAddress ?? null},

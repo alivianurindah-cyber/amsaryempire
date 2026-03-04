@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LogOut, Users, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, DollarSign, FileText, Calendar, AlertCircle, Search } from 'lucide-react';
 import { AttendanceRecord, User } from '../types';
 import { Button } from './Button';
-import { getUsers, updateUser, deleteUser } from '../services/auth';
+import { getUsers, updateUser, deleteUser, register } from '../services/auth';
 import { getAttendanceRecords, updateAttendanceRecord } from '../services/attendance';
 import { AdminAttendance } from './AdminAttendance';
 
@@ -15,7 +15,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUserUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'PAYROLL' | 'ATTENDANCE'>('LOGS');
+  const [activeTab, setActiveTab] = useState<'LOGS' | 'STAFF' | 'PAYROLL' | 'ATTENDANCE'>('ATTENDANCE');
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -36,6 +36,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
   
   // Calendar State
   const [selectedStaffCalendar, setSelectedStaffCalendar] = useState<string | null>(null);
+
+  // Add Employee State
+  const [showAddEmployee, setShowAddEmployee] = useState(false);
+  const [addForm, setAddForm] = useState<Partial<User>>({
+    role: 'STAFF',
+    salaryType: 'MONTHLY'
+  });
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     // Load Logs
@@ -103,6 +111,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         // Refresh users
         const usrs = await getUsers();
         setUsers(usrs);
+    }
+  };
+
+  const handleAddEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddError(null);
+    
+    if (!addForm.username || !addForm.password || !addForm.name) {
+      setAddError("Username, password, and name are required.");
+      return;
+    }
+
+    try {
+      // 1. Register the user
+      const newUser = await register(
+        addForm.username, 
+        addForm.password, 
+        addForm.name, 
+        addForm.department || 'General'
+      );
+
+      // 2. Update with additional details
+      await updateUser({
+        id: newUser.id,
+        role: addForm.role,
+        avatar: addForm.avatar,
+        phone: addForm.phone,
+        icNumber: addForm.icNumber,
+        homeAddress: addForm.homeAddress,
+        emergencyPhone: addForm.emergencyPhone,
+        typhoidCertificateUrl: addForm.typhoidCertificateUrl,
+        typhoidExpiryDate: addForm.typhoidExpiryDate,
+        employeeId: addForm.employeeId,
+        shiftStart: addForm.shiftStart,
+        shiftEnd: addForm.shiftEnd,
+        baseSalary: addForm.baseSalary,
+        salaryType: addForm.salaryType
+      });
+
+      // 3. Refresh users list
+      const usrs = await getUsers();
+      setUsers(usrs);
+      
+      // 4. Close modal and reset form
+      setShowAddEmployee(false);
+      setAddForm({ role: 'STAFF', salaryType: 'MONTHLY' });
+    } catch (err: any) {
+      setAddError(err.message || "Failed to add employee");
     }
   };
 
@@ -368,12 +424,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
 
         {/* STAFF TABLE */}
         {activeTab === 'STAFF' && (
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+            <div className="space-y-6">
+                <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="p-2 bg-brand-50 rounded-lg text-brand-600">
+                            <Users className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-slate-900">Employee Management</h2>
+                            <p className="text-sm text-slate-500">Add, view, and edit employee details</p>
+                        </div>
+                    </div>
+                    <Button onClick={() => setShowAddEmployee(true)} className="flex items-center gap-2">
+                        <Plus className="w-4 h-4" />
+                        Add Employee
+                    </Button>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
                         <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
                             <tr>
-                                <th className="px-6 py-4">Name & IC</th>
+                                <th className="px-6 py-4">Employee Info</th>
                                 <th className="px-6 py-4">Department</th>
                                 <th className="px-6 py-4">Contact Info</th>
                                 <th className="px-6 py-4">Emp ID</th>
@@ -417,12 +490,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                                     onChange={e => setEditForm({...editForm, icNumber: e.target.value})}
                                                     placeholder="IC Number"
                                                 />
+                                                <select
+                                                    className="w-full border rounded px-2 py-1 text-xs"
+                                                    value={editForm.role || 'STAFF'}
+                                                    onChange={e => setEditForm({...editForm, role: e.target.value as 'ADMIN' | 'STAFF'})}
+                                                >
+                                                    <option value="STAFF">Staff</option>
+                                                    <option value="ADMIN">Admin</option>
+                                                </select>
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-3">
                                                 <img src={u.avatar} className="w-8 h-8 rounded-full bg-slate-100 object-cover" />
                                                 <div>
                                                     <div className="font-semibold text-slate-900">{u.name}</div>
+                                                    <div className="text-xs text-brand-600 font-medium">{u.role}</div>
                                                     {u.icNumber && <div className="text-xs text-slate-500">IC: {u.icNumber}</div>}
                                                 </div>
                                             </div>
@@ -620,6 +702,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                     </table>
                 </div>
             </div>
+        </div>
         )}
         {/* ATTENDANCE TABLE */}
         {activeTab === 'ATTENDANCE' && (
@@ -1222,6 +1305,183 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                 await updateAttendanceRecord(updatedRecord);
                             }}
                         />
+                    </div>
+                </div>
+            </div>
+        )}
+        {/* ADD EMPLOYEE MODAL */}
+        {showAddEmployee && (
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl border border-slate-100 flex flex-col max-h-[90vh]">
+                    <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                        <h2 className="text-lg font-bold text-slate-900">Add New Employee</h2>
+                        <button onClick={() => setShowAddEmployee(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <div className="p-6 overflow-y-auto">
+                        {addError && (
+                            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4" />
+                                {addError}
+                            </div>
+                        )}
+                        <form onSubmit={handleAddEmployee} className="space-y-6">
+                            {/* Account Details */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-slate-900 mb-3">Account Details</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Username *</label>
+                                        <input 
+                                            required
+                                            type="text"
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.username || ''}
+                                            onChange={e => setAddForm({...addForm, username: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Password *</label>
+                                        <input 
+                                            required
+                                            type="password"
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.password || ''}
+                                            onChange={e => setAddForm({...addForm, password: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Full Name *</label>
+                                        <input 
+                                            required
+                                            type="text"
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.name || ''}
+                                            onChange={e => setAddForm({...addForm, name: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Role</label>
+                                        <select 
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.role || 'STAFF'}
+                                            onChange={e => setAddForm({...addForm, role: e.target.value as 'ADMIN' | 'STAFF'})}
+                                        >
+                                            <option value="STAFF">Staff</option>
+                                            <option value="ADMIN">Admin</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Employment Details */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-slate-900 mb-3">Employment Details</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Employee ID</label>
+                                        <input 
+                                            type="text"
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.employeeId || ''}
+                                            onChange={e => setAddForm({...addForm, employeeId: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Department</label>
+                                        <input 
+                                            type="text"
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.department || ''}
+                                            onChange={e => setAddForm({...addForm, department: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Shift Start</label>
+                                        <input 
+                                            type="time"
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.shiftStart || ''}
+                                            onChange={e => setAddForm({...addForm, shiftStart: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Shift End</label>
+                                        <input 
+                                            type="time"
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.shiftEnd || ''}
+                                            onChange={e => setAddForm({...addForm, shiftEnd: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Base Salary (RM)</label>
+                                        <input 
+                                            type="number"
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.baseSalary || ''}
+                                            onChange={e => setAddForm({...addForm, baseSalary: Number(e.target.value)})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Salary Type</label>
+                                        <select 
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.salaryType || 'MONTHLY'}
+                                            onChange={e => setAddForm({...addForm, salaryType: e.target.value as 'HOURLY' | 'DAILY' | 'MONTHLY'})}
+                                        >
+                                            <option value="MONTHLY">Monthly</option>
+                                            <option value="DAILY">Daily</option>
+                                            <option value="HOURLY">Hourly</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Personal Details */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-slate-900 mb-3">Personal Details</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Phone</label>
+                                        <input 
+                                            type="tel"
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.phone || ''}
+                                            onChange={e => setAddForm({...addForm, phone: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">IC Number</label>
+                                        <input 
+                                            type="text"
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.icNumber || ''}
+                                            onChange={e => setAddForm({...addForm, icNumber: e.target.value})}
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">Home Address</label>
+                                        <textarea 
+                                            rows={2}
+                                            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                            value={addForm.homeAddress || ''}
+                                            onChange={e => setAddForm({...addForm, homeAddress: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                                <Button type="button" variant="secondary" onClick={() => setShowAddEmployee(false)}>
+                                    Cancel
+                                </Button>
+                                <Button type="submit">
+                                    Save Employee
+                                </Button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
