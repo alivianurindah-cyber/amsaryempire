@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LogOut, Users, MapPin, Clock, CheckCircle2, ChefHat, Edit2, Trash2, Save, X, Plus, DollarSign, FileText, Calendar, AlertCircle, Search } from 'lucide-react';
 import { AttendanceRecord, User } from '../types';
 import { Button } from './Button';
@@ -47,6 +47,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
 
   // Image Modal State
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // Logs View State
+  const [logsView, setLogsView] = useState<'DETAILED' | 'SUMMARY'>('DETAILED');
 
   useEffect(() => {
     // Load Logs
@@ -201,10 +204,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
     u.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const summaryData = useMemo(() => {
+    const data: Record<string, { name: string, role: string, date: string, clockIn: string | null, clockOut: string | null }> = {};
+    filteredRecords.forEach(r => {
+        const key = `${r.userId}-${r.dateStr}`;
+        if (!data[key]) {
+            data[key] = {
+                name: r.userName,
+                role: r.userRole,
+                date: r.dateStr,
+                clockIn: null,
+                clockOut: null
+            };
+        }
+        if (r.type === 'CLOCK_IN') data[key].clockIn = r.timeStr;
+        if (r.type === 'CLOCK_OUT') data[key].clockOut = r.timeStr;
+    });
+    return Object.values(data).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [filteredRecords]);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Top Bar */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center shadow-sm">
@@ -262,7 +284,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         </div>
         
         {/* Mobile Tabs Navigation */}
-        <div className="lg:hidden border-t border-slate-100 bg-white overflow-x-auto scrollbar-hide">
+        <div className="lg:hidden border-t border-slate-100 bg-white overflow-x-auto scrollbar-hide print:hidden">
             <div className="flex p-2 gap-2 min-w-max">
                 <button 
                     onClick={() => setActiveTab('LOGS')}
@@ -309,7 +331,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         
         {/* Stats Row (Only on Logs view) */}
         {activeTab === 'LOGS' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 print:hidden">
                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                     <div>
                         <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">Total Logs</p>
@@ -345,7 +367,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         )}
 
         {/* Common Search Bar */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 mb-6 print:hidden">
             <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
                 <input 
@@ -357,19 +379,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                 />
             </div>
             {activeTab === 'LOGS' && (
-                <div className="flex bg-white rounded-lg border border-slate-200 p-1">
-                    <button 
-                        onClick={() => setFilter('ALL')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${filter === 'ALL' ? 'bg-brand-50 text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        All Logs
-                    </button>
-                    <button 
-                        onClick={() => setFilter('TODAY')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${filter === 'TODAY' ? 'bg-brand-50 text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        Today
-                    </button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex bg-white rounded-lg border border-slate-200 p-1">
+                        <button 
+                            onClick={() => setFilter('ALL')}
+                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${filter === 'ALL' ? 'bg-brand-50 text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            All Logs
+                        </button>
+                        <button 
+                            onClick={() => setFilter('TODAY')}
+                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${filter === 'TODAY' ? 'bg-brand-50 text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Today
+                        </button>
+                    </div>
+                    <div className="flex bg-white rounded-lg border border-slate-200 p-1">
+                        <button 
+                            onClick={() => setLogsView('DETAILED')}
+                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${logsView === 'DETAILED' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Detailed
+                        </button>
+                        <button 
+                            onClick={() => setLogsView('SUMMARY')}
+                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${logsView === 'SUMMARY' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Summary
+                        </button>
+                    </div>
+                    {logsView === 'SUMMARY' && (
+                        <Button variant="secondary" onClick={() => window.print()} className="gap-2 shrink-0">
+                            <FileText className="w-4 h-4" /> Download PDF
+                        </Button>
+                    )}
                 </div>
             )}
             {activeTab === 'STAFF' && (
@@ -389,7 +432,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
         </div>
 
         {/* LOGS TABLE */}
-        {activeTab === 'LOGS' && (
+        {activeTab === 'LOGS' && logsView === 'DETAILED' && (
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left min-w-[800px]">
@@ -454,6 +497,67 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, 
                                     </td>
                                 </tr>
                             ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
+
+        {/* SUMMARY TABLE */}
+        {activeTab === 'LOGS' && logsView === 'SUMMARY' && (
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm print:shadow-none print:border-none">
+                <div className="hidden print:block mb-8">
+                    <h1 className="text-2xl font-bold text-slate-900">Activity Logs Summary</h1>
+                    <p className="text-slate-500">Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
+                    <p className="text-slate-500">Filter: {filter === 'TODAY' ? "Today's Logs" : "All Logs"}</p>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[600px] print:w-full print:min-w-0">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500 print:bg-transparent print:text-black">
+                            <tr>
+                                <th className="px-6 py-4 print:px-2 print:py-2">Employee</th>
+                                <th className="px-6 py-4 print:px-2 print:py-2">Date</th>
+                                <th className="px-6 py-4 print:px-2 print:py-2">Clock In</th>
+                                <th className="px-6 py-4 print:px-2 print:py-2">Clock Out</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 print:divide-slate-300">
+                            {summaryData.map((data, index) => (
+                                <tr key={index} className="hover:bg-slate-50 transition-colors print:hover:bg-transparent">
+                                    <td className="px-6 py-4 print:px-2 print:py-2">
+                                        <div className="font-semibold text-slate-900 print:text-black">{data.name || 'Unknown'}</div>
+                                        <div className="text-xs text-slate-500 print:text-black">{data.role}</div>
+                                    </td>
+                                    <td className="px-6 py-4 print:px-2 print:py-2 text-sm text-slate-700 print:text-black">
+                                        {data.date}
+                                    </td>
+                                    <td className="px-6 py-4 print:px-2 print:py-2">
+                                        {data.clockIn ? (
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200 print:border-none print:bg-transparent print:text-black print:p-0">
+                                                {data.clockIn}
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-400 text-sm print:text-black">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 print:px-2 print:py-2">
+                                        {data.clockOut ? (
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 print:border-none print:bg-transparent print:text-black print:p-0">
+                                                {data.clockOut}
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-400 text-sm print:text-black">-</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            {summaryData.length === 0 && (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
+                                        No activity found for the selected filters.
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
