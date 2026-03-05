@@ -197,7 +197,7 @@ export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ userId, 
 
     // Empty cells for previous month padding
     for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-20 sm:h-24 bg-slate-50/50 border-b border-r border-slate-100"></div>);
+      days.push(<div key={`empty-${i}`} className="min-h-[80px] sm:min-h-[96px] bg-slate-50/50 border-b border-r border-slate-100"></div>);
     }
 
     // Days of the month
@@ -213,7 +213,7 @@ export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ userId, 
           key={day} 
           onClick={() => handleDayClick(dateStr, status)}
           className={clsx(
-            "h-20 sm:h-24 border-b border-r border-slate-100 p-1 relative flex flex-col transition-colors",
+            "min-h-[80px] sm:min-h-[96px] border-b border-r border-slate-100 p-1 relative flex flex-col transition-colors",
             status?.isToday ? "bg-blue-50/30" : "bg-white",
             isWeekend && "bg-slate-50/30",
             isAdmin && "cursor-pointer hover:bg-slate-50"

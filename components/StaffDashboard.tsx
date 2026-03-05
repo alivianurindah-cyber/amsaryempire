@@ -25,6 +25,9 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
   
+  const [activeAlert, setActiveAlert] = useState<{ title: string; body: string } | null>(null);
+  const [lastAlertTime, setLastAlertTime] = useState<string | null>(null);
+  
   // Profile Form State
   const [profileForm, setProfileForm] = useState({
     name: user.name || '',
@@ -63,7 +66,6 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
   const hasClockedOutToday = todaysRecords.some(r => r.type === 'CLOCK_OUT');
   const isShiftComplete = hasClockedInToday && hasClockedOutToday;
 
-  // Sound Alert Logic
   useEffect(() => {
     if (!user.shiftStart && !user.shiftEnd) return;
 
@@ -78,43 +80,27 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
       const hasClockedInToday = todaysRecords.some(r => r.type === 'CLOCK_IN');
       const hasClockedOutToday = todaysRecords.some(r => r.type === 'CLOCK_OUT');
 
-      const playAlertSound = () => {
-        try {
-          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-          const oscillator = audioCtx.createOscillator();
-          const gainNode = audioCtx.createGain();
-
-          oscillator.connect(gainNode);
-          gainNode.connect(audioCtx.destination);
-
-          oscillator.type = 'sine';
-          oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
-          gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-
-          oscillator.start();
-          oscillator.stop(audioCtx.currentTime + 0.5); // Play for 0.5 seconds
-        } catch (e) {
-          console.error("Audio playback failed", e);
-        }
-      };
-
-      if (user.shiftStart === currentTimeStr && !hasClockedInToday) {
-        playAlertSound();
-        if (Notification.permission === 'granted') {
-            new Notification('Clock In Reminder', { body: 'It is time to clock in for your shift.' });
+      if (user.shiftStart === currentTimeStr && !hasClockedInToday && lastAlertTime !== currentTimeStr) {
+        const msg = { title: 'CLOCK IN ALERT', body: 'IT IS TIME TO CLOCK IN FOR YOUR SHIFT!' };
+        setActiveAlert(msg);
+        setLastAlertTime(currentTimeStr);
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification(msg.title, { body: msg.body });
         }
       }
 
-      if (user.shiftEnd === currentTimeStr && hasClockedInToday && !hasClockedOutToday) {
-        playAlertSound();
-        if (Notification.permission === 'granted') {
-            new Notification('Clock Out Reminder', { body: 'It is time to clock out from your shift.' });
+      if (user.shiftEnd === currentTimeStr && hasClockedInToday && !hasClockedOutToday && lastAlertTime !== currentTimeStr) {
+        const msg = { title: 'CLOCK OUT ALERT', body: 'IT IS TIME TO CLOCK OUT FROM YOUR SHIFT!' };
+        setActiveAlert(msg);
+        setLastAlertTime(currentTimeStr);
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification(msg.title, { body: msg.body });
         }
       }
     };
 
-    // Request notification permission
-    if (Notification.permission === 'default') {
+    // Request notification permission (iOS only supports this in PWA mode)
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         Notification.requestPermission();
     }
 
@@ -443,6 +429,33 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ user, onLogout, 
   return (
     // Mobile: Full screen fixed layout. Desktop: Centered card.
     <div className="fixed inset-0 w-full h-[100dvh] bg-slate-50 font-sans text-slate-900 sm:relative sm:h-[850px] sm:max-w-md sm:mx-auto sm:shadow-2xl sm:rounded-3xl sm:overflow-hidden flex flex-col sm:border sm:border-slate-200">
+      
+      {/* Big Red Alert Overlay */}
+      {activeAlert && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-red-600 p-6 animate-in fade-in zoom-in duration-300">
+          <div className="max-w-md w-full text-center space-y-8">
+            <div className="flex justify-center">
+              <div className="bg-white rounded-full p-6 animate-bounce shadow-2xl">
+                <Bell className="w-16 h-16 text-red-600" />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h2 className="text-6xl font-black text-white tracking-tighter leading-none drop-shadow-lg">
+                {activeAlert.title}
+              </h2>
+              <p className="text-2xl font-bold text-red-100 uppercase tracking-widest drop-shadow-md">
+                {activeAlert.body}
+              </p>
+            </div>
+            <button 
+              onClick={() => setActiveAlert(null)}
+              className="w-full py-8 text-2xl font-black bg-white text-red-600 hover:bg-red-50 rounded-2xl shadow-2xl transform active:scale-95 transition-all uppercase"
+            >
+              I UNDERSTAND
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Header - Sticky with safe area top padding */}
       <header className="bg-white px-6 py-4 sticky top-0 z-20 border-b border-slate-100 pt-[calc(1rem+env(safe-area-inset-top))] sm:pt-4">

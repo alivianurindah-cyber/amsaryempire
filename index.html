@@ -3,10 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="https://vitejs.dev/logo.svg" />
+    <link rel="apple-touch-icon" href="https://vitejs.dev/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#4f46e5">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GeoAttend">
     <meta name="format-detection" content="telephone=no">
     <title>GeoAttend AI</title>
     <script>
@@ -118,7 +120,12 @@
       input, textarea {
         -webkit-appearance: none;
         appearance: none;
-        border-radius: 0;
+        background-color: transparent;
+      }
+      /* Fix for iOS date/time input legibility and prevent zoom */
+      input[type="date"], input[type="time"], input[type="datetime-local"], input[type="text"], input[type="password"], input[type="number"], input[type="tel"], textarea, select {
+        font-size: 16px !important; /* Prevent iOS zoom on focus */
+        min-height: 2.5rem;
       }
     </style>
 </head>

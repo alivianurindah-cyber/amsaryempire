@@ -23,9 +23,6 @@ export const initDB = async () => {
         localStorage.setItem('attendance_records', JSON.stringify([]));
       }
 
-      // Music tracks are no longer initialized in LocalStorage as they require Cloud Mode
-      // or were previously in IndexedDB. We don't create a local 'music_tracks' here anymore.
-
       // Check/Create Default Admin for Offline Mode
       if (!users.find((u: any) => u.username === 'admin')) {
          console.log("Creating default admin user (Offline)...");

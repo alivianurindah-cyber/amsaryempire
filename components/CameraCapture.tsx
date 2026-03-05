@@ -41,7 +41,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
         }
 
         // 2. Get Camera
-        // iOS requires explicit audio: false if not needed to avoid interrupting background music/calls aggressively
         // We use { ideal: 720 } but iOS often chooses its own resolution close to this.
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: { 
@@ -56,10 +55,25 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCance
             setStream(mediaStream);
             if (videoRef.current) {
               videoRef.current.srcObject = mediaStream;
-              // Explicitly play() for iOS compatibility
-              videoRef.current.onloadedmetadata = () => {
-                  videoRef.current?.play().catch(e => console.warn("Video play failed:", e));
+              
+              // iOS compatibility: Ensure play() is called after srcObject is set
+              const playVideo = async () => {
+                try {
+                  if (videoRef.current) {
+                    await videoRef.current.play();
+                  }
+                } catch (e) {
+                  console.warn("Video play failed, retrying on metadata load:", e);
+                  // Fallback to onloadedmetadata if immediate play fails
+                  if (videoRef.current) {
+                    videoRef.current.onloadedmetadata = () => {
+                      videoRef.current?.play().catch(err => console.error("Final video play attempt failed:", err));
+                    };
+                  }
+                }
               };
+              
+              playVideo();
             }
         } else {
             // Clean up if component unmounted during async
